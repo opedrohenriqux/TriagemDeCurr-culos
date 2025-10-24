@@ -5,7 +5,7 @@
 export type CandidateStatus = 'applied' | 'screening' | 'approved' | 'rejected' | 'hired' | 'pending' | 'waitlist' | 'offer';
 
 export interface User {
-    id: number;
+    id: string;
     username: string;
     password?: string;
     role: 'admin' | 'user';
@@ -62,7 +62,7 @@ export interface CandidateInterview {
 }
 
 export interface Candidate {
-    id: number;
+    id: string;
     name: string;
     age: number;
     maritalStatus: string;
@@ -86,8 +86,8 @@ export interface Candidate {
 }
 
 export interface Talent {
-    id: number;
-    originalCandidateId?: number;
+    id:string;
+    originalCandidateId?: string;
     name: string;
     age: number;
     city: string;
@@ -104,7 +104,7 @@ export interface Talent {
 }
 
 export interface Message {
-    id: number;
+    id: string;
     senderId: string;
     receiverId: string;
     text: string;
@@ -123,9 +123,9 @@ export type HistoryAction =
     | 'CREATE_DYNAMIC' | 'UPDATE_DYNAMIC' | 'DELETE_DYNAMIC';
 
 export interface HistoryEvent {
-    id: number;
+    id: string;
     timestamp: string;
-    userId: number;
+    userId: string;
     username: string;
     action: HistoryAction;
     details: string;
@@ -133,9 +133,9 @@ export interface HistoryEvent {
 
 export interface DynamicGroup {
     name: string;
-    members: number[];
+    members: string[];
     groupNotes?: string;
-    individualNotes?: { [candidateId: number]: string };
+    individualNotes?: { [candidateId: string]: string };
 }
 
 export interface Dynamic {
@@ -143,7 +143,7 @@ export interface Dynamic {
     title: string;
     script: string;
     date: string;
-    participants: number[];
+    participants: string[];
     groups: DynamicGroup[];
     generalNotes?: string;
 }
@@ -166,7 +166,7 @@ export interface AIAnalysis {
 }
 
 export interface ChatMessage {
-    id: number;
+    id: string;
     sender: 'user' | 'ai';
     text: string;
     timestamp: string;

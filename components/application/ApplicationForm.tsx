@@ -1,12 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { USERS } from '../../constants';
 import { Candidate, Message, User, CandidateStatus, Job, Dynamic } from '../../types';
 import MessagingPanel from '../messaging/MessagingPanel';
 import CandidateDynamicsView from './CandidateDynamicsView';
 
 interface ApplicationFormProps {
     onSwitchToLogin: () => void;
-    onAddCandidate: (formData: any) => number;
+    onAddCandidate: (formData: any) => Promise<string>;
     candidates: Candidate[];
     users: User[];
     jobs: Job[];
@@ -80,7 +79,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = (props) => {
 
     const [view, setView] = useState<'form' | 'success' | 'status_check' | 'status_display'>('form');
     const [candidateView, setCandidateView] = useState<'dashboard' | 'dynamics'>('dashboard');
-    const [submittedCandidateId, setSubmittedCandidateId] = useState<number | null>(null);
+    const [submittedCandidateId, setSubmittedCandidateId] = useState<string | null>(null);
     const [statusCheckId, setStatusCheckId] = useState('');
     const [statusCandidate, setStatusCandidate] = useState<Candidate | null>(null);
     const [statusError, setStatusError] = useState('');
@@ -93,8 +92,6 @@ const ApplicationForm: React.FC<ApplicationFormProps> = (props) => {
     
     const [liveMessages, setLiveMessages] = useState<Message[]>(messages);
 
-    // This useEffect ensures the local message state is always in sync with the parent state (App.tsx).
-    // This is crucial for the unidirectional data flow to work correctly.
     useEffect(() => {
         setLiveMessages(messages);
     }, [messages]);
@@ -102,30 +99,12 @@ const ApplicationForm: React.FC<ApplicationFormProps> = (props) => {
 
     useEffect(() => {
         if (!statusCandidate) return;
-
-        const intervalId = setInterval(() => {
-            try {
-                const storedMessages = window.localStorage.getItem('lacoste-messages');
-                if (storedMessages) {
-                    const parsedMessages: Message[] = JSON.parse(storedMessages);
-                    if (parsedMessages.length !== liveMessages.length) {
-                        setLiveMessages(parsedMessages);
-                    }
-                }
-            } catch (error) {
-                console.error("Error polling for messages:", error);
-            }
-        }, 3000); // Poll every 3 seconds
-
-        return () => clearInterval(intervalId);
-    }, [statusCandidate, liveMessages.length]);
+        // The data is now live from Firestore, no need to poll localStorage
+    }, [statusCandidate]);
 
     const handleCandidateSendMessage = (receiverId: string, text: string) => {
         if (!statusCandidate) return;
         const senderId = `candidate-${statusCandidate.id}`;
-        // The child component calls this function, which in turn calls the parent's (App.tsx) function.
-        // This ensures the message is added to the central source of truth (localStorage via useLocalStorage hook)
-        // and the change propagates down correctly to all components.
         onSendMessage(senderId, receiverId, text);
     };
 

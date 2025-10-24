@@ -10,8 +10,8 @@ interface ScheduleViewProps {
     candidates: Candidate[];
     jobs: Job[];
     users: User[];
-    onUpdateCandidate: (candidate: Candidate) => void;
-    onBulkCancelInterviews: (candidateIds: number[]) => void;
+    onUpdateCandidate: (candidate: Candidate, oldStatus?: Candidate['status']) => void;
+    onBulkCancelInterviews: (candidateIds: string[]) => void;
     onOpenMessaging: (candidateId: number) => void;
     dynamics: Dynamic[];
     onAddDynamic: (dynamic: Omit<Dynamic, 'id'>) => void;
@@ -28,14 +28,14 @@ const CalendarView: React.FC<{
     interviewsByDate: Map<string, Candidate[]>, 
     currentDate: Date, 
     setCurrentDate: (date: Date) => void,
-    onCancel: (id: number) => void,
+    onCancel: (id: string) => void,
     onEdit: (candidate: Candidate) => void,
     onOpenFeedback: (candidate: Candidate) => void,
     onOpenMessaging: (candidateId: number) => void,
     selectedDateKey: string | null,
     onDateSelect: (key: string | null) => void,
     jobMap: Map<string, string>,
-    onBulkCancel: (ids: number[]) => void,
+    onBulkCancel: (ids: string[]) => void,
 }> = ({ 
     interviewsByDate, 
     currentDate, 

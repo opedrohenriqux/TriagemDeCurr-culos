@@ -234,13 +234,11 @@ function App() {
   // Job Management
   const handleAddJob = async (jobData: Omit<Job, 'id'>) => {
     const newJob = await jobService.create(jobData);
-    setJobs(prev => [newJob, ...prev]);
     logHistory('CREATE_JOB', `Criou a vaga '${newJob.title}'.`);
   };
 
   const handleUpdateJob = async (updatedJob: Job) => {
     await jobService.update(updatedJob.id, updatedJob);
-    setJobs(prev => prev.map(j => (j.id === updatedJob.id ? updatedJob : j)));
     logHistory('UPDATE_JOB', `Atualizou os dados da vaga '${updatedJob.title}'.`);
   };
 
@@ -248,7 +246,6 @@ function App() {
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
     await jobService.update(jobId, { status: 'archived' });
-    setJobs(prev => prev.map(j => (j.id === jobId ? { ...j, status: 'archived' } : j)));
     logHistory('ARCHIVE_JOB', `Arquivou a vaga '${job.title}'.`);
   };
 
@@ -256,7 +253,6 @@ function App() {
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
     await jobService.update(jobId, { status: 'active' });
-    setJobs(prev => prev.map(j => (j.id === jobId ? { ...j, status: 'active' } : j)));
     logHistory('RESTORE_JOB', `Restaurou a vaga '${job.title}'.`);
   };
 
@@ -264,7 +260,6 @@ function App() {
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
     await jobService.delete(jobId);
-    setJobs(prev => prev.filter(j => j.id !== jobId));
     logHistory('DELETE_JOB', `Excluiu permanentemente a vaga '${job.title}'.`);
   };
 
@@ -320,7 +315,6 @@ function App() {
     };
 
     const newCandidate = await candidateService.create(newCandidateData);
-    setCandidates(prev => [newCandidate, ...prev]);
     return newCandidate.id;
   };
 
@@ -390,7 +384,7 @@ function App() {
         }, 6000); // 6 seconds to undo
     }
 
-    setCandidates(prev => prev.map(c => c.id === updatedCandidate.id ? updatedCandidate : c));
+    await candidateService.update(updatedCandidate.id, updatedCandidate);
 
     if (originalCandidate && originalCandidate.status !== updatedCandidate.status) {
         logHistory('UPDATE_CANDIDATE', `Alterou o status de '${originalCandidate.name}' para '${updatedCandidate.status}'.`);
@@ -399,7 +393,7 @@ function App() {
     }
   };
 
-  const handleBulkUpdateCandidates = (updatedCandidates: Candidate[]) => {
+  const handleBulkUpdateCandidates = async (updatedCandidates: Candidate[]) => {
     // --- Find the first candidate that was approved from screening ---
     const candidateForAiOffer = updatedCandidates.find(updatedCandidate => {
         const originalCandidate = candidates.find(c => c.id === updatedCandidate.id);
@@ -416,20 +410,18 @@ function App() {
         }
     }
 
-    const updatesMap = new Map(updatedCandidates.map(c => [c.id, c]));
-    setCandidates(prev =>
-        prev.map(c => updatesMap.get(c.id) || c)
-    );
+    const updatePromises = updatedCandidates.map(c => candidateService.update(c.id, c));
+    await Promise.all(updatePromises);
+
     if (updatedCandidates.length > 0) {
         logHistory('UPDATE_CANDIDATE', `Atualizou em lote o status de ${updatedCandidates.length} candidatos.`);
     }
   };
 
-  const handleUndoUpdate = () => {
+  const handleUndoUpdate = async () => {
     if (undoState) {
-        // Revert the candidate to its original state
         const original = undoState.originalCandidate;
-        setCandidates(prev => prev.map(c => c.id === original.id ? original : c));
+        await candidateService.update(original.id, original);
         logHistory('UPDATE_CANDIDATE', `Desfez a alteração de status para '${original.name}'.`);
         setUndoState(null);
         if (undoTimeoutRef.current) {
@@ -440,22 +432,28 @@ function App() {
   };
 
 
-  const handleArchiveCandidate = (candidateId: number) => {
+  const handleArchiveCandidate = async (candidateId: string) => {
     const candidate = candidates.find(c => c.id === candidateId);
-    setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, isArchived: true } : c));
-    if(candidate) logHistory('ARCHIVE_CANDIDATE', `Arquivou o candidato '${candidate.name}'.`);
+    if(candidate) {
+      await candidateService.update(candidateId, { isArchived: true });
+      logHistory('ARCHIVE_CANDIDATE', `Arquivou o candidato '${candidate.name}'.`);
+    }
   };
   
-  const handleRestoreCandidate = (candidateId: number) => {
+  const handleRestoreCandidate = async (candidateId: string) => {
     const candidate = candidates.find(c => c.id === candidateId);
-    setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, isArchived: false } : c));
-    if(candidate) logHistory('RESTORE_CANDIDATE', `Restaurou o candidato '${candidate.name}'.`);
+    if(candidate) {
+      await candidateService.update(candidateId, { isArchived: false });
+      logHistory('RESTORE_CANDIDATE', `Restaurou o candidato '${candidate.name}'.`);
+    }
   };
 
-  const handlePermanentDeleteCandidate = (candidateId: number) => {
+  const handlePermanentDeleteCandidate = async (candidateId: string) => {
     const candidate = candidates.find(c => c.id === candidateId);
-    setCandidates(prev => prev.filter(c => c.id !== candidateId));
-    if(candidate) logHistory('DELETE_CANDIDATE', `Excluiu permanentemente o candidato '${candidate.name}'.`);
+    if(candidate) {
+      await candidateService.delete(candidateId);
+      logHistory('DELETE_CANDIDATE', `Excluiu permanentemente o candidato '${candidate.name}'.`);
+    }
   };
   
   const handleInterviewScheduled = (candidate: Candidate, interviewDetails: CandidateInterview) => {
@@ -463,26 +461,24 @@ function App() {
     logHistory('UPDATE_CANDIDATE', `Agendou entrevista para '${candidate.name}'.`);
   };
   
-  const handleBulkInterviewScheduled = (candidateIds: number[], interviewDetails: Omit<CandidateInterview, 'notes'>) => {
-    setCandidates(prev => prev.map(c => {
-        if(candidateIds.includes(c.id)) {
-            return { ...c, interview: { ...interviewDetails, notes: '' }, status: 'approved' };
-        }
-        return c;
-    }));
+  const handleBulkInterviewScheduled = async (candidateIds: string[], interviewDetails: Omit<CandidateInterview, 'notes'>) => {
+    const candidatesToUpdate = candidates.filter(c => candidateIds.includes(c.id));
+    const updatePromises = candidatesToUpdate.map(c =>
+      candidateService.update(c.id, { ...c, interview: { ...interviewDetails, notes: '' }, status: 'approved' })
+    );
+    await Promise.all(updatePromises);
     logHistory('UPDATE_CANDIDATE', `Agendou entrevistas em lote para ${candidateIds.length} candidatos.`);
   };
 
-  const handleBulkCancelInterviews = (candidateIds: number[]) => {
-    setCandidates(prev => prev.map(c => {
-        if(candidateIds.includes(c.id)) {
-            const updated = { ...c };
-            delete updated.interview;
-            updated.status = 'approved';
-            return updated;
-        }
-        return c;
-    }));
+  const handleBulkCancelInterviews = async (candidateIds: string[]) => {
+    const candidatesToUpdate = candidates.filter(c => candidateIds.includes(c.id));
+    const updatePromises = candidatesToUpdate.map(c => {
+      const updated = { ...c };
+      delete updated.interview;
+      updated.status = 'approved';
+      return candidateService.update(c.id, updated);
+    });
+    await Promise.all(updatePromises);
     logHistory('UPDATE_CANDIDATE', `Cancelou entrevistas em lote para ${candidateIds.length} candidatos.`);
   };
 
@@ -490,13 +486,11 @@ function App() {
   // Talent Pool Management
   const handleAddTalent = async (talentData: Omit<Talent, 'id'>) => {
     const newTalent = await talentService.create(talentData);
-    setTalentPool(prev => [newTalent, ...prev]);
     logHistory('CREATE_TALENT', `Adicionou '${newTalent.name}' ao banco de talentos.`);
   };
 
   const handleUpdateTalent = async (updatedTalent: Talent) => {
     await talentService.update(updatedTalent.id, updatedTalent);
-    setTalentPool(prev => prev.map(t => (t.id === updatedTalent.id ? updatedTalent : t)));
     logHistory('UPDATE_TALENT', `Atualizou os dados do talento '${updatedTalent.name}'.`);
   };
   
@@ -504,7 +498,6 @@ function App() {
     const talent = talentPool.find(t => t.id === talentId);
     if (!talent) return;
     await talentService.update(talentId, { isArchived: true });
-    setTalentPool(prev => prev.map(t => (t.id === talentId ? { ...t, isArchived: true } : t)));
     logHistory('ARCHIVE_TALENT', `Arquivou o talento '${talent.name}'.`);
   };
 
@@ -512,7 +505,6 @@ function App() {
     const talent = talentPool.find(t => t.id === talentId);
     if (!talent) return;
     await talentService.update(talentId, { isArchived: false });
-    setTalentPool(prev => prev.map(t => (t.id === talentId ? { ...t, isArchived: false } : t)));
     logHistory('RESTORE_TALENT', `Restaurou o talento '${talent.name}'.`);
   };
 
@@ -520,7 +512,6 @@ function App() {
     const talent = talentPool.find(t => t.id === talentId);
     if (!talent) return;
     await talentService.delete(talentId);
-    setTalentPool(prev => prev.filter(t => t.id !== talentId));
     logHistory('DELETE_TALENT', `Excluiu permanentemente o talento '${talent.name}'.`);
   };
 
@@ -553,11 +544,8 @@ function App() {
         }
     };
 
-    const newCandidate = await candidateService.create(newCandidateData);
+    await candidateService.create(newCandidateData);
     await talentService.delete(talentId);
-
-    setCandidates(prev => [newCandidate, ...prev]);
-    setTalentPool(prev => prev.filter(t => t.id !== talentId));
 
     const jobTitle = jobs.find(j => j.id === jobId)?.title;
     logHistory('SEND_TALENT_TO_JOB', `Enviou o talento '${talent.name}' para a vaga '${jobTitle}'.`);
@@ -572,14 +560,12 @@ function App() {
       timestamp: new Date().toISOString(),
       isRead: false,
     };
-    const newMessage = await messageService.create(newMessageData);
-    setMessages(prev => [...prev, newMessage]);
+    await messageService.create(newMessageData);
     logHistory('SEND_MESSAGE', `Enviou uma mensagem para '${receiverId}'.`);
   };
 
   const handleUpdateMessage = async (messageId: string, newText: string, isDeleted: boolean = false) => {
     await messageService.update(messageId, { text: newText, isDeleted });
-    setMessages(prev => prev.map(msg => (msg.id === messageId ? { ...msg, text: newText, isDeleted } : msg)));
     if (!isDeleted) {
       logHistory('UPDATE_MESSAGE', `Editou uma mensagem.`);
     }
@@ -589,7 +575,6 @@ function App() {
     const unreadMessages = messages.filter(msg => msg.senderId === senderId && msg.receiverId === receiverId && !msg.isRead);
     const updatePromises = unreadMessages.map(msg => messageService.update(msg.id, { isRead: true }));
     await Promise.all(updatePromises);
-    setMessages(prev => prev.map(msg => (unreadMessages.some(um => um.id === msg.id) ? { ...msg, isRead: true } : msg)));
   };
 
   const handleDeleteConversation = (partnerId: string) => {
@@ -675,7 +660,6 @@ function App() {
     // User Management
   const handleUpdateUser = async (updatedUser: User) => {
     await userService.update(updatedUser.id, updatedUser);
-    setUsers(prev => prev.map(u => (u.id === updatedUser.id ? updatedUser : u)));
     logHistory('UPDATE_USER', `Atualizou os dados do usuário '${updatedUser.username}'.`);
   };
 
@@ -683,7 +667,6 @@ function App() {
     const user = users.find(u => u.id === userId);
     if (!user) return;
     await userService.delete(userId);
-    setUsers(prev => prev.filter(u => u.id !== userId));
     logHistory('DELETE_USER', `Excluiu permanentemente o usuário '${user.username}'.`);
   };
 
@@ -692,7 +675,6 @@ function App() {
     if (user) {
       const newRole = user.role === 'admin' ? 'user' : 'admin';
       await userService.update(userId, { role: newRole });
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
       logHistory('UPDATE_USER', `Alterou o cargo de '${user.username}' para '${newRole}'.`);
     }
   };

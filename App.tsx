@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser } from 'firebase/auth';
 import LoginScreen from './components/auth/LoginScreen';
 import MainLayout, { View } from './components/layout/MainLayout';
-import { USERS, INITIAL_JOBS, INITIAL_CANDIDATES, INITIAL_TALENT_POOL, INITIAL_MESSAGES } from './constants';
 import { User, Job, Candidate, Talent, CandidateInterview, Message, CandidateStatus, HistoryEvent, HistoryAction, Dynamic, ActiveDynamicTimer } from './types';
 import ReminderToast from './components/notifications/ReminderToast';
 import UndoToast from './components/notifications/UndoToast';
 import ApplicationForm from './components/application/ApplicationForm';
 import { generateInterviewInvitationMessage } from './services/geminiService';
 import AIMessageOfferToast from './components/notifications/AIMessageOfferToast';
+import { auth } from './services/firebase';
+import { jobService, candidateService, talentService, messageService, historyService, dynamicService, userService } from './services/firestoreService';
 
 interface ApplicationFormData {
     jobId: string;
@@ -31,55 +33,6 @@ interface ApplicationFormData {
     resumeFile: string | null;
 }
 
-// Custom hook for persistent state with localStorage and sync feedback
-function useLocalStorage<T>(
-    key: string,
-    initialValue: T,
-    onSync: (status: 'syncing' | 'saved' | 'error') => void
-): [T, React.Dispatch<React.SetStateAction<T>>] {
-    const [storedValue, setStoredValue] = useState<T>(() => {
-        try {
-            const item = window.localStorage.getItem(key);
-            if (item) {
-                const parsedItem = JSON.parse(item);
-                // Handle Set deserialization for archived conversations
-                if (initialValue instanceof Set && Array.isArray(parsedItem)) {
-                    return new Set(parsedItem) as T;
-                }
-                return parsedItem;
-            }
-            // If no item, set the initial value in localStorage
-            window.localStorage.setItem(key, JSON.stringify(initialValue));
-            return initialValue;
-        } catch (error) {
-            console.error(`Error reading localStorage key “${key}”:`, error);
-            return initialValue;
-        }
-    });
-
-    const setValue = (value: T | ((val: T) => T)) => {
-        onSync('syncing'); // Trigger syncing status
-        // Add a small delay to make "syncing" visible on fast operations
-        setTimeout(() => {
-            try {
-                const valueToStore = value instanceof Function ? value(storedValue) : value;
-                setStoredValue(valueToStore);
-                let itemToStore: any = valueToStore;
-                // Handle Set serialization
-                if (valueToStore instanceof Set) {
-                    itemToStore = Array.from(valueToStore.values());
-                }
-                window.localStorage.setItem(key, JSON.stringify(itemToStore));
-                onSync('saved'); // Trigger saved status
-            } catch (error) {
-                console.error(`Error setting localStorage key “${key}”:`, error);
-                onSync('error'); // Trigger error status
-            }
-        }, 200);
-    };
-
-    return [storedValue, setValue as React.Dispatch<React.SetStateAction<T>>];
-}
 
 
 function App() {
@@ -90,26 +43,15 @@ function App() {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'saved' | 'error'>('idle');
   const syncTimeoutRef = useRef<number | null>(null);
 
-  const handleSync = (status: 'syncing' | 'saved' | 'error') => {
-      if (syncTimeoutRef.current) {
-          clearTimeout(syncTimeoutRef.current);
-      }
-      setSyncStatus(status);
-      if (status === 'saved' || status === 'error') {
-          syncTimeoutRef.current = window.setTimeout(() => setSyncStatus('idle'), 3000);
-      }
-  };
-  
-  // Replace useState with useLocalStorage for data persistence
-  const [users, setUsers] = useLocalStorage<User[]>('lacoste-users', USERS, handleSync);
-  const [jobs, setJobs] = useLocalStorage<Job[]>('lacoste-jobs', INITIAL_JOBS, handleSync);
-  const [candidates, setCandidates] = useLocalStorage<Candidate[]>('lacoste-candidates', INITIAL_CANDIDATES, handleSync);
-  const [talentPool, setTalentPool] = useLocalStorage<Talent[]>('lacoste-talent-pool', INITIAL_TALENT_POOL, handleSync);
-  const [messages, setMessages] = useLocalStorage<Message[]>('lacoste-messages', INITIAL_MESSAGES, handleSync);
-  const [archivedConversations, setArchivedConversations] = useLocalStorage<Set<string>>('lacoste-archived-convos', new Set(), handleSync);
-  const [history, setHistory] = useLocalStorage<HistoryEvent[]>('lacoste-history', [], handleSync);
-  const [dynamics, setDynamics] = useLocalStorage<Dynamic[]>('lacoste-dynamics', [], handleSync);
-  const [activeDynamicTimer, setActiveDynamicTimer] = useLocalStorage<ActiveDynamicTimer | null>('lacoste-active-dynamic', null, handleSync);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [talentPool, setTalentPool] = useState<Talent[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [archivedConversations, setArchivedConversations] = useState<Set<string>>(new Set());
+  const [history, setHistory] = useState<HistoryEvent[]>([]);
+  const [dynamics, setDynamics] = useState<Dynamic[]>([]);
+  const [activeDynamicTimer, setActiveDynamicTimer] = useState<ActiveDynamicTimer | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
 
 
   const [activeReminder, setActiveReminder] = useState<{ candidate: Candidate; type: 'reminder' | 'now' } | null>(null);
@@ -124,17 +66,17 @@ function App() {
   // State for AI message offer
   const [aiMessageOffer, setAiMessageOffer] = useState<{ candidate: Candidate; job: Job } | null>(null);
 
-  const logHistory = (action: HistoryAction, details: string) => {
+  const logHistory = async (action: HistoryAction, details: string) => {
     if (!currentUser) return;
-    const newEvent: HistoryEvent = {
-      id: Date.now(),
+    const newEvent: Omit<HistoryEvent, 'id'> = {
       timestamp: new Date().toISOString(),
       userId: currentUser.id,
       username: currentUser.username,
       action: action,
       details: details,
     };
-    setHistory(prev => [newEvent, ...prev]);
+    const savedEvent = await historyService.create(newEvent);
+    setHistory(prev => [savedEvent, ...prev]);
   };
 
   const handleOpenMessaging = (candidateId: number | null = null) => {
@@ -147,19 +89,47 @@ function App() {
 
 
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem('lacoste-burger-user');
-      if (savedUser) {
-        setCurrentUser(JSON.parse(savedUser));
+    const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const existingUsers = await userService.getAll();
+        let appUser = existingUsers.find(u => u.id === firebaseUser.uid);
+
+        if (!appUser) {
+          const newUser: User = {
+            id: firebaseUser.uid,
+            username: firebaseUser.email || 'Usuário Anônimo',
+            role: 'user', // Default role
+            specialty: 'Generalista',
+          };
+          await userService.set(firebaseUser.uid, newUser);
+          appUser = newUser;
+        }
+
+        setCurrentUser(appUser);
+
+        const unsubscribes = [
+          jobService.listen(setJobs),
+          candidateService.listen(setCandidates),
+          talentService.listen(setTalentPool),
+          messageService.listen(setMessages),
+          historyService.listen(setHistory),
+          dynamicService.listen(setDynamics),
+          userService.listen(setUsers),
+        ];
+
+        return () => unsubscribes.forEach(unsub => unsub());
+      } else {
+        setCurrentUser(null);
+        setJobs([]);
+        setCandidates([]);
+        setTalentPool([]);
+        setMessages([]);
+        setHistory([]);
+        setDynamics([]);
+        setUsers([]);
       }
-      const savedTheme = localStorage.getItem('lacoste-burger-theme');
-      if (savedTheme) {
-        setTheme(savedTheme as 'light' | 'dark');
-      }
-    } catch (error) {
-      console.error("Failed to load data from localStorage", error);
-      // Avoid clearing all data if one key is corrupted
-    }
+    });
+    return () => authUnsubscribe();
   }, []);
 
   useEffect(() => {
@@ -170,7 +140,7 @@ function App() {
     }
     localStorage.setItem('lacoste-burger-theme', theme);
   }, [theme]);
-  
+
   // Effect for scheduling reminders
   useEffect(() => {
     if (!currentUser) return; // Don't run if not logged in
@@ -242,84 +212,65 @@ function App() {
   }, [candidates, remindedIntervals, currentUser, activeReminder]);
 
 
-  const handleLogin = (username: string, password: string, rememberMe: boolean): boolean => {
-    const user = users.find(u => u.username === username && u.password === password);
-    if (user) {
-      setCurrentUser(user);
-      localStorage.setItem('lacoste-burger-user', JSON.stringify(user));
-      if (rememberMe) {
-        localStorage.setItem('lacoste-burger-creds', JSON.stringify({ username, password }));
-      } else {
-        localStorage.removeItem('lacoste-burger-creds');
-      }
+  const handleLogin = async (email: string, password: string): Promise<boolean> => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       return true;
+    } catch (error) {
+      console.error("Failed to sign in", error);
+      return false;
     }
-    return false;
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('lacoste-burger-user');
-    setAppState('application');
-  };
-
-  // User Management
-  const handleAddUser = (userData: Omit<User, 'id' | 'role'>) => {
-    const newUser: User = { ...userData, id: Date.now(), role: 'user' };
-    setUsers(prev => [...prev, newUser]);
-    logHistory('CREATE_USER', `Criou o usuário '${newUser.username}'.`);
-  };
-
-  const handleRemoveUser = (userId: number) => {
-    const userToRemove = users.find(u => u.id === userId);
-    setUsers(prev => prev.filter(u => u.id !== userId));
-    if(userToRemove) logHistory('DELETE_USER', `Removeu o usuário '${userToRemove.username}'.`);
-  };
-  
-  const handleUpdateUser = (updatedUser: User) => {
-    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-    logHistory('UPDATE_USER', `Atualizou os dados do usuário '${updatedUser.username}'.`);
-  };
-
-  const handleToggleAdminRole = (userId: number) => {
-    const userToToggle = users.find(u => u.id === userId);
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: u.role === 'admin' ? 'user' : 'admin' } : u));
-    if(userToToggle) logHistory('TOGGLE_ADMIN', `Alterou a permissão de admin para o usuário '${userToToggle.username}'.`);
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setAppState('application');
+    } catch (error) {
+      console.error("Failed to sign out", error);
+    }
   };
 
   // Job Management
-  const handleAddJob = (jobData: Omit<Job, 'id'>) => {
-    const newJob: Job = { ...jobData, id: `job-${Date.now()}-${Math.random()}` };
+  const handleAddJob = async (jobData: Omit<Job, 'id'>) => {
+    const newJob = await jobService.create(jobData);
     setJobs(prev => [newJob, ...prev]);
     logHistory('CREATE_JOB', `Criou a vaga '${newJob.title}'.`);
   };
 
-  const handleUpdateJob = (updatedJob: Job) => {
-    setJobs(prev => prev.map(j => j.id === updatedJob.id ? updatedJob : j));
-    logHistory('UPDATE_JOB', `Atualizou a vaga '${updatedJob.title}'.`);
+  const handleUpdateJob = async (updatedJob: Job) => {
+    await jobService.update(updatedJob.id, updatedJob);
+    setJobs(prev => prev.map(j => (j.id === updatedJob.id ? updatedJob : j)));
+    logHistory('UPDATE_JOB', `Atualizou os dados da vaga '${updatedJob.title}'.`);
   };
 
-  const handleArchiveJob = (jobId: string) => {
-    const jobToArchive = jobs.find(j => j.id === jobId);
-    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'archived' } : j));
-    if(jobToArchive) logHistory('ARCHIVE_JOB', `Arquivou a vaga '${jobToArchive.title}'.`);
+  const handleArchiveJob = async (jobId: string) => {
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+    await jobService.update(jobId, { status: 'archived' });
+    setJobs(prev => prev.map(j => (j.id === jobId ? { ...j, status: 'archived' } : j)));
+    logHistory('ARCHIVE_JOB', `Arquivou a vaga '${job.title}'.`);
   };
 
-  const handleRestoreJob = (jobId: string) => {
-    const jobToRestore = jobs.find(j => j.id === jobId);
-    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'active' } : j));
-    if(jobToRestore) logHistory('RESTORE_JOB', `Restaurou a vaga '${jobToRestore.title}'.`);
+  const handleRestoreJob = async (jobId: string) => {
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+    await jobService.update(jobId, { status: 'active' });
+    setJobs(prev => prev.map(j => (j.id === jobId ? { ...j, status: 'active' } : j)));
+    logHistory('RESTORE_JOB', `Restaurou a vaga '${job.title}'.`);
   };
 
-  const handlePermanentDeleteJob = (jobId: string) => {
-    const jobToDelete = jobs.find(j => j.id === jobId);
+  const handlePermanentDeleteJob = async (jobId: string) => {
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+    await jobService.delete(jobId);
     setJobs(prev => prev.filter(j => j.id !== jobId));
-    if(jobToDelete) logHistory('DELETE_JOB', `Excluiu permanentemente a vaga '${jobToDelete.title}'.`);
+    logHistory('DELETE_JOB', `Excluiu permanentemente a vaga '${job.title}'.`);
   };
 
 
   // Candidate Management
-  const handleAddCandidate = (formData: ApplicationFormData): number => {
+  const handleAddCandidate = async (formData: ApplicationFormData): Promise<string> => {
     const experiences = formData.professionalExperiences
         .filter(exp => exp.company.trim() || exp.role.trim() || exp.duration.trim())
         .map(exp => ({ ...exp, description: '' }));
@@ -335,8 +286,7 @@ function App() {
 
     const courses = formData.complementaryCourses.filter(course => course.name.trim() || course.institution.trim());
 
-    const newCandidate: Candidate = {
-        id: Date.now(),
+    const newCandidateData: Omit<Candidate, 'id'> = {
         name: formData.name,
         age: parseInt(formData.age, 10) || 0,
         maritalStatus: formData.maritalStatus,
@@ -369,8 +319,8 @@ function App() {
         }
     };
 
+    const newCandidate = await candidateService.create(newCandidateData);
     setCandidates(prev => [newCandidate, ...prev]);
-    // Note: History is logged by recruiters, not candidates.
     return newCandidate.id;
   };
 
@@ -538,41 +488,47 @@ function App() {
 
 
   // Talent Pool Management
-  const handleAddTalent = (talentData: Omit<Talent, 'id'>) => {
-    const newTalent: Talent = { ...talentData, id: Date.now() };
+  const handleAddTalent = async (talentData: Omit<Talent, 'id'>) => {
+    const newTalent = await talentService.create(talentData);
     setTalentPool(prev => [newTalent, ...prev]);
     logHistory('CREATE_TALENT', `Adicionou '${newTalent.name}' ao banco de talentos.`);
   };
 
-  const handleUpdateTalent = (updatedTalent: Talent) => {
-    setTalentPool(prev => prev.map(t => t.id === updatedTalent.id ? updatedTalent : t));
+  const handleUpdateTalent = async (updatedTalent: Talent) => {
+    await talentService.update(updatedTalent.id, updatedTalent);
+    setTalentPool(prev => prev.map(t => (t.id === updatedTalent.id ? updatedTalent : t)));
     logHistory('UPDATE_TALENT', `Atualizou os dados do talento '${updatedTalent.name}'.`);
   };
   
-  const handleArchiveTalent = (talentId: number) => {
-      const talent = talentPool.find(t => t.id === talentId);
-      setTalentPool(prev => prev.map(t => t.id === talentId ? { ...t, isArchived: true } : t));
-      if(talent) logHistory('ARCHIVE_TALENT', `Arquivou o talento '${talent.name}'.`);
+  const handleArchiveTalent = async (talentId: string) => {
+    const talent = talentPool.find(t => t.id === talentId);
+    if (!talent) return;
+    await talentService.update(talentId, { isArchived: true });
+    setTalentPool(prev => prev.map(t => (t.id === talentId ? { ...t, isArchived: true } : t)));
+    logHistory('ARCHIVE_TALENT', `Arquivou o talento '${talent.name}'.`);
   };
 
-  const handleRestoreTalent = (talentId: number) => {
+  const handleRestoreTalent = async (talentId: string) => {
     const talent = talentPool.find(t => t.id === talentId);
-    setTalentPool(prev => prev.map(t => t.id === talentId ? { ...t, isArchived: false } : t));
-    if(talent) logHistory('RESTORE_TALENT', `Restaurou o talento '${talent.name}'.`);
+    if (!talent) return;
+    await talentService.update(talentId, { isArchived: false });
+    setTalentPool(prev => prev.map(t => (t.id === talentId ? { ...t, isArchived: false } : t)));
+    logHistory('RESTORE_TALENT', `Restaurou o talento '${talent.name}'.`);
   };
 
-  const handlePermanentDeleteTalent = (talentId: number) => {
+  const handlePermanentDeleteTalent = async (talentId: string) => {
     const talent = talentPool.find(t => t.id === talentId);
+    if (!talent) return;
+    await talentService.delete(talentId);
     setTalentPool(prev => prev.filter(t => t.id !== talentId));
-    if(talent) logHistory('DELETE_TALENT', `Excluiu permanentemente o talento '${talent.name}'.`);
+    logHistory('DELETE_TALENT', `Excluiu permanentemente o talento '${talent.name}'.`);
   };
 
-  const handleSendTalentToJob = (talentId: number, jobId: string) => {
+  const handleSendTalentToJob = async (talentId: string, jobId: string) => {
     const talent = talentPool.find(t => t.id === talentId);
     if (!talent) return;
 
-    const newCandidate: Candidate = {
-        id: Date.now(),
+    const newCandidateData: Omit<Candidate, 'id'> = {
         name: talent.name,
         age: talent.age,
         maritalStatus: 'Não informado',
@@ -597,43 +553,43 @@ function App() {
         }
     };
 
+    const newCandidate = await candidateService.create(newCandidateData);
+    await talentService.delete(talentId);
+
     setCandidates(prev => [newCandidate, ...prev]);
     setTalentPool(prev => prev.filter(t => t.id !== talentId));
+
     const jobTitle = jobs.find(j => j.id === jobId)?.title;
     logHistory('SEND_TALENT_TO_JOB', `Enviou o talento '${talent.name}' para a vaga '${jobTitle}'.`);
   };
 
   // Messaging Management
-  const handleSendMessage = (senderId: string, receiverId: string, text: string) => {
-    const newMessage: Message = {
-      id: Date.now(),
+  const handleSendMessage = async (senderId: string, receiverId: string, text: string) => {
+    const newMessageData: Omit<Message, 'id'> = {
       senderId,
       receiverId,
       text,
       timestamp: new Date().toISOString(),
       isRead: false,
     };
+    const newMessage = await messageService.create(newMessageData);
     setMessages(prev => [...prev, newMessage]);
     logHistory('SEND_MESSAGE', `Enviou uma mensagem para '${receiverId}'.`);
   };
 
-  const handleUpdateMessage = (messageId: number, newText: string, isDeleted: boolean = false) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId ? { ...msg, text: newText, isDeleted } : msg
-    ));
+  const handleUpdateMessage = async (messageId: string, newText: string, isDeleted: boolean = false) => {
+    await messageService.update(messageId, { text: newText, isDeleted });
+    setMessages(prev => prev.map(msg => (msg.id === messageId ? { ...msg, text: newText, isDeleted } : msg)));
     if (!isDeleted) {
       logHistory('UPDATE_MESSAGE', `Editou uma mensagem.`);
     }
   };
 
-  const handleMarkMessagesAsRead = (senderId: string, receiverId: string) => {
-    setMessages(prev =>
-      prev.map(msg =>
-        msg.senderId === senderId && msg.receiverId === receiverId && !msg.isRead
-          ? { ...msg, isRead: true }
-          : msg
-      )
-    );
+  const handleMarkMessagesAsRead = async (senderId: string, receiverId: string) => {
+    const unreadMessages = messages.filter(msg => msg.senderId === senderId && msg.receiverId === receiverId && !msg.isRead);
+    const updatePromises = unreadMessages.map(msg => messageService.update(msg.id, { isRead: true }));
+    await Promise.all(updatePromises);
+    setMessages(prev => prev.map(msg => (unreadMessages.some(um => um.id === msg.id) ? { ...msg, isRead: true } : msg)));
   };
 
   const handleDeleteConversation = (partnerId: string) => {
@@ -713,6 +669,31 @@ function App() {
     setDynamics(prev => prev.filter(d => d.id !== dynamicId));
     if (dynamicToDelete) {
         logHistory('DELETE_DYNAMIC', `Excluiu a dinâmica '${dynamicToDelete.title}'.`);
+    }
+  };
+
+    // User Management
+  const handleUpdateUser = async (updatedUser: User) => {
+    await userService.update(updatedUser.id, updatedUser);
+    setUsers(prev => prev.map(u => (u.id === updatedUser.id ? updatedUser : u)));
+    logHistory('UPDATE_USER', `Atualizou os dados do usuário '${updatedUser.username}'.`);
+  };
+
+  const handlePermanentDeleteUser = async (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    await userService.delete(userId);
+    setUsers(prev => prev.filter(u => u.id !== userId));
+    logHistory('DELETE_USER', `Excluiu permanentemente o usuário '${user.username}'.`);
+  };
+
+  const handleToggleAdminRole = async (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      const newRole = user.role === 'admin' ? 'user' : 'admin';
+      await userService.update(userId, { role: newRole });
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+      logHistory('UPDATE_USER', `Alterou o cargo de '${user.username}' para '${newRole}'.`);
     }
   };
 
@@ -806,8 +787,8 @@ function App() {
         onRestoreTalent={handleRestoreTalent}
         onDeleteTalent={handlePermanentDeleteTalent}
         onSendTalentToJob={handleSendTalentToJob}
-        onAddUser={handleAddUser}
-        onRemoveUser={handleRemoveUser}
+        onAddUser={() => {}} // Not implemented as users are created on login
+        onRemoveUser={handlePermanentDeleteUser}
         onUpdateUser={handleUpdateUser}
         onToggleAdminRole={handleToggleAdminRole}
         onRestoreAll={handleRestoreAll}

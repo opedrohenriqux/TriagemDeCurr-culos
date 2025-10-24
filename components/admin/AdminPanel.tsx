@@ -7,9 +7,9 @@ interface AdminPanelProps {
   currentUser: User;
   users: User[];
   onAddUser: (user: Omit<User, 'id' | 'role'> & { password?: string }) => void;
-  onRemoveUser: (userId: number) => void;
+  onRemoveUser: (userId: string) => void;
   onUpdateUser: (user: User) => void;
-  onToggleAdminRole: (userId: number) => void;
+  onToggleAdminRole: (userId: string) => void;
   setActiveView: (view: View) => void;
 }
 

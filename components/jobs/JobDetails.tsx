@@ -82,9 +82,9 @@ interface CandidateCardProps {
   candidate: any; // Using any to accommodate processed fields
   onOpenProfile: (candidate: Candidate) => void;
   analysis?: AIAnalysis | null;
-  onArchive: (candidateId: number) => void;
+  onArchive: (candidateId: string) => void;
   onScheduleInterview: (candidate: Candidate) => void;
-  onSelect: (id: number) => void;
+  onSelect: (id: string) => void;
   isSelected: boolean;
 }
 

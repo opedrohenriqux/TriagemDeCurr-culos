@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 interface LoginScreenProps {
-  onLogin: (username: string, password: string, rememberMe: boolean) => boolean;
+  onLogin: (email: string, password: string) => Promise<boolean>;
   onSwitchToApplication: () => void;
 }
 
@@ -10,44 +10,23 @@ const Spinner: React.FC = () => (
 );
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToApplication }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    try {
-      const savedCreds = localStorage.getItem('lacoste-burger-creds');
-      if (savedCreds) {
-        const { username, password } = JSON.parse(savedCreds);
-        if (username && password) {
-          setUsername(username);
-          setPassword(password);
-          setRememberMe(true);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to parse saved credentials for auto-fill", error);
-      localStorage.removeItem('lacoste-burger-creds');
-    }
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // Simulate network delay for visual feedback on the button
-    setTimeout(() => {
-        const success = onLogin(username, password, rememberMe);
-        if (!success) {
-          setError('Usuário ou senha inválidos.');
-          setLoading(false);
-        }
-        // On success, the component unmounts, so no need to setLoading(false)
-    }, 1000);
+    const success = await onLogin(email, password);
+    if (!success) {
+      setError('Email ou senha inválidos.');
+      setLoading(false);
+    }
+    // On success, the component will unmount as App state changes, so no need to setLoading(false)
   };
 
   return (
@@ -71,17 +50,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToApplicatio
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="username" className="text-sm font-medium text-light-text-secondary dark:text-text-secondary mb-1 block">Usuário</label>
+              <label htmlFor="email" className="text-sm font-medium text-light-text-secondary dark:text-text-secondary mb-1 block">Email</label>
               <input
-                id="username"
-                name="username"
-                type="text"
-                autoComplete="username"
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
                 required
                 className="appearance-none relative block w-full px-4 py-3 border border-light-border dark:border-border bg-light-background dark:bg-background text-light-text-primary dark:text-text-primary placeholder-light-text-secondary dark:placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-light-primary dark:focus:ring-primary focus:border-light-primary dark:focus:border-primary sm:text-sm rounded-lg transition-transform duration-300 focus:scale-[1.02]"
-                placeholder="Luan, Marcos, Pedro, Ruan, Samuel.."
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                placeholder="seu-email@exemplo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="relative">
@@ -111,23 +90,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToApplicatio
               </button>
             </div>
           </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 text-light-primary dark:text-primary bg-light-surface dark:bg-surface border-light-border dark:border-border rounded focus:ring-light-primary dark:focus:ring-primary"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-light-text-secondary dark:text-text-secondary">
-                Salvar senha
-              </label>
-            </div>
-          </div>
-
 
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 

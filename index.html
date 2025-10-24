@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lacoste Burger - ATS IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class', // Enable class-based dark mode
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              // Light Theme Colors
+              'light-background': '#F3F4F6', // light gray
+              'light-surface': '#FFFFFF',
+              'light-primary': '#14B8A6', // Darker Teal for contrast
+              'light-primary-hover': '#0D9488',
+              'light-secondary': '#4338CA', // Darker Indigo
+              'light-border': '#E5E7EB',
+              'light-text-primary': '#1F2937',
+              'light-text-secondary': '#6B7280',
+
+              // Dark Theme Colors (prefixed with 'dark-')
+              background: '#0D1117',
+              surface: '#161B22',
+              primary: '#2DD4BF', // Teal
+              'primary-hover': '#5EEAD4',
+              secondary: '#4F46E5', // Indigo
+              border: '#30363D',
+              'text-primary': '#E5E7EB',
+              'text-secondary': '#9CA3AF',
+            },
+            boxShadow: {
+              'glow-primary': '0 0 15px 0 rgba(45, 212, 191, 0.3)',
+              'glow-secondary': '0 0 15px 0 rgba(79, 70, 229, 0.3)',
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.3s ease-out',
+              'fade-in-up': 'fadeInUp 0.4s ease-out',
+              'blob': 'blob 8s infinite',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: 0 },
+                '100%': { opacity: 1 },
+              },
+              fadeInUp: {
+                '0%': { opacity: 0, transform: 'translateY(20px)' },
+                '100%': { opacity: 1, transform: 'translateY(0)' },
+              },
+              blob: {
+                '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                '100%': { transform: 'translate(0px, 0px) scale(1)' },
+              },
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      body {
+        /* Default to light mode colors */
+        background-color: #F3F4F6;
+      }
+      .dark body {
+        /* Dark mode colors */
+        background-color: #0D1117;
+      }
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #FFFFFF; /* light-surface */
+      }
+      .dark ::-webkit-scrollbar-track {
+        background: #161B22; /* surface */
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #E5E7EB; /* light-border */
+        border-radius: 4px;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #30363D; /* border */
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #D1D5DB; 
+      }
+      .dark ::-webkit-scrollbar-thumb:hover {
+        background: #4B5563; 
+      }
+       /* Custom styles for range input thumb */
+      .range-thumb-primary::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        background: #14B8A6; /* light-primary */
+        cursor: pointer;
+        border-radius: 50%;
+        margin-top: -6px;
+      }
+      .dark .range-thumb-primary::-webkit-slider-thumb {
+         background: #2DD4BF; /* primary */
+      }
+      .range-thumb-primary::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        background: #14B8A6; /* light-primary */
+        cursor: pointer;
+        border-radius: 50%;
+      }
+       .dark .range-thumb-primary::-moz-range-thumb {
+         background: #2DD4BF; /* primary */
+      }
+      .animation-delay-2000 {
+        animation-delay: -2s;
+      }
+      .animation-delay-4000 {
+        animation-delay: -4s;
+      }
+
+      @media print {
+        header, .no-print {
+            display: none !important;
+        }
+        body {
+            background-color: #FFFFFF !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        main {
+            padding: 1rem !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-shadow: none !important;
+        }
+        .chart-wrapper {
+            page-break-inside: avoid;
+            border: 1px solid #E5E7EB !important;
+            box-shadow: none !important;
+        }
+        /* Force light theme text colors for readability */
+        .dark body, .dark * {
+            background-color: #FFFFFF !important;
+            color: #1F2937 !important;
+        }
+        .dark .recharts-text, .dark .recharts-legend-item-text,
+        .recharts-text, .recharts-legend-item-text {
+            fill: #1F2937 !important;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.25.0",
+    "recharts": "https://aistudiocdn.com/recharts@^2.13.0",
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4",
+    "vite": "https://aistudiocdn.com/vite@^7.1.10",
+    "url": "https://aistudiocdn.com/url@^0.11.4"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

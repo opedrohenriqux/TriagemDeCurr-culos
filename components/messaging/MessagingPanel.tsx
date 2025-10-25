@@ -23,14 +23,14 @@ const NewConversationModal: React.FC<NewConversationModalProps> = ({ type, candi
             return candidates
                 .filter(c => ['screening', 'approved', 'offer', 'waitlist', 'hired'].includes(c.status))
                 .filter(c => !existingPartnerIds.has(`candidate-${c.id}`))
-                .sort((a, b) => a.name.localeCompare(b.name))
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                 .map(c => ({ id: `candidate-${c.id}`, name: c.name }));
         } else { // team
             const currentUserId = currentUser.id.split('-')[1];
             return users
                 .filter(u => u.id !== currentUserId)
                 .filter(u => !existingPartnerIds.has(`user-${u.id}`))
-                .sort((a, b) => a.username.localeCompare(b.username))
+                .sort((a, b) => (a.username || '').localeCompare(b.username || ''))
                 .map(u => ({ id: `user-${u.id}`, name: u.username }));
         }
     }, [type, candidates, users, currentUser, conversations]);

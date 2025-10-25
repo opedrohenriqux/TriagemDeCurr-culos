@@ -297,7 +297,7 @@ function App() {
             ? formData.experienceDetails || 'Experiência prévia em lanchonete.' 
             : 'Sem experiência anterior em lanchonete.',
         education: formData.education,
-        skills: formData.skills.split(',').map(s => s.trim()).filter(s => s),
+        skills: (formData.skills || '').split(',').map(s => s.trim()).filter(s => s),
         summary: formData.personalSummary,
         jobId: formData.jobId,
         fitScore: parseFloat((Math.random() * 4 + 5).toFixed(1)), // Assign a random base score
@@ -309,7 +309,7 @@ function App() {
         resume: {
             professionalExperience: experiences,
             courses: courses,
-            availability: formData.availability.join(', '),
+            availability: (formData.availability || []).join(', '),
             contact: {
                 phone: formData.phone || 'Não informado',
                 email: formData.email || 'Não informado'

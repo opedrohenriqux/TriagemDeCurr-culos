@@ -96,6 +96,13 @@ const ApplicationForm: React.FC<ApplicationFormProps> = (props) => {
         setLiveMessages(messages);
     }, [messages]);
 
+    useEffect(() => {
+        // Ensure the form's jobId is synced when jobs load
+        if (activeJobs.length > 0 && !formData.jobId) {
+            setFormData(prev => ({ ...prev, jobId: activeJobs[0].id }));
+        }
+    }, [activeJobs, formData.jobId]);
+
 
     useEffect(() => {
         if (!statusCandidate) return;

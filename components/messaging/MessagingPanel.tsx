@@ -26,9 +26,9 @@ const NewConversationModal: React.FC<NewConversationModalProps> = ({ type, candi
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(c => ({ id: `candidate-${c.id}`, name: c.name }));
         } else { // team
-            const currentUserIdNum = parseInt(currentUser.id.split('-')[1], 10);
+            const currentUserId = currentUser.id.split('-')[1];
             return users
-                .filter(u => u.id !== currentUserIdNum)
+                .filter(u => u.id !== currentUserId)
                 .filter(u => !existingPartnerIds.has(`user-${u.id}`))
                 .sort((a, b) => a.username.localeCompare(b.username))
                 .map(u => ({ id: `user-${u.id}`, name: u.username }));
@@ -185,10 +185,13 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
         let filteredList;
         if (activeTab === 'candidates') {
             filteredList = initialList
-                .map(convo => ({ ...convo, candidate: candidates.find(c => `candidate-${c.id}` === convo.partner.id) }))
+                .map(convo => {
+                    const candidate = candidates.find(c => `candidate-${c.id}` === convo.partner.id);
+                    return { ...convo, candidate };
+                })
                 .filter(convo => {
                     if (!convo.candidate) {
-                        return false; // Defensively filter out conversations where candidate was deleted
+                        return false; // Filter out if no matching candidate
                     }
                     const nameMatch = convo.partner.name.toLowerCase().includes(searchTerm.toLowerCase());
                     const jobMatch = jobFilter === 'all' || convo.candidate.jobId === jobFilter;
@@ -196,9 +199,9 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
                     return nameMatch && jobMatch && statusMatch;
                 });
         } else { // activeTab === 'team'
-            filteredList = initialList.filter(convo => {
-                return convo.partner.name.toLowerCase().includes(searchTerm.toLowerCase());
-            });
+            filteredList = initialList.filter(convo =>
+                convo.partner.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
         }
         
         // 3. Sort the final list

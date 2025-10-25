@@ -377,10 +377,14 @@ export const analyzeResumeWithAI = async (resumeDataUrl: string): Promise<string
     if (!ai) return "A funcionalidade de IA está desativada.";
 
     try {
-        // Dynamically import pdfjs-dist and configure the worker
         const pdfjsLib = await import('pdfjs-dist');
-        const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.entry');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
+        // Construct the worker URL in a way that Vite can handle
+        const workerUrl = new URL(
+            'pdfjs-dist/build/pdf.worker.min.mjs',
+            import.meta.url
+        );
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl.toString();
 
         // Convert data URL to ArrayBuffer
         const base64 = resumeDataUrl.split(',')[1];

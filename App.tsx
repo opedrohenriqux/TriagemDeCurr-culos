@@ -36,6 +36,19 @@ interface ApplicationFormData {
 
 
 function App() {
+  // DEBUG CODE START
+  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!geminiApiKey) {
+    return (
+      <div style={{ padding: '20px', fontFamily: 'monospace', color: 'red', backgroundColor: 'black', height: '100vh' }}>
+        <h1>Erro de Configuração</h1>
+        <p>A variável de ambiente VITE_GEMINI_API_KEY não foi encontrada.</p>
+        <p>Valor recebido: '{geminiApiKey === undefined ? 'undefined' : geminiApiKey || 'string vazia'}'</p>
+      </div>
+    );
+  }
+  // DEBUG CODE END
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [activeView, setActiveView] = useState<View>('vagas');

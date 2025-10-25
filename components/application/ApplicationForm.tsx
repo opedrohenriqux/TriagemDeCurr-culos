@@ -205,9 +205,10 @@ const ApplicationForm: React.FC<ApplicationFormProps> = (props) => {
             setSubmittedCandidateId(newId);
             setView('success');
             window.scrollTo(0, 0);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to submit application:", error);
-            alert("Ocorreu um erro ao enviar sua inscrição. Por favor, tente novamente.");
+            const errorMessage = `Ocorreu um erro ao enviar sua inscrição. Por favor, tente novamente.\n\nDetalhes do erro: ${error.message || 'Erro desconhecido.'}`;
+            alert(errorMessage);
         } finally {
             setIsSubmitting(false);
         }

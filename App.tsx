@@ -95,10 +95,10 @@ function App() {
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const existingUsers = await userService.getAll();
-        let appUser = existingUsers.find(u => u.id === firebaseUser.uid);
+        let appUser = await userService.getById(firebaseUser.uid);
 
         if (!appUser) {
+          // This is a new user, create a profile for them
           const newUser: User = {
             id: firebaseUser.uid,
             username: firebaseUser.email || 'Usuário Anônimo',
@@ -325,7 +325,7 @@ function App() {
         applicationDate: new Date().toISOString(),
         source: 'Portal de Carreiras',
         isArchived: false,
-        resumeUrl: formData.resumeFile || undefined,
+        // resumeUrl: formData.resumeFile || undefined, // This was the cause of the bug
         resume: {
             professionalExperience: experiences,
             courses: courses,
@@ -340,6 +340,10 @@ function App() {
             fiveYearPlan: (formData.fiveYearPlan || '').trim(),
         }
     };
+
+    if (formData.resumeFile) {
+      newCandidateData.resumeUrl = formData.resumeFile;
+    }
 
     console.log("Preparing to create candidate with sanitized data:", newCandidateData);
     try {
@@ -376,7 +380,7 @@ function App() {
             originalCandidateId: originalCandidate.id,
             name: originalCandidate.name,
             age: originalCandidate.age,
-            city: originalCandidate.location.split('(')[0].trim(),
+            city: originalCandidate.location ? originalCandidate.location.split('(')[0].trim() : 'Não informada',
             education: originalCandidate.education,
             experience: originalCandidate.experience,
             skills: originalCandidate.skills,

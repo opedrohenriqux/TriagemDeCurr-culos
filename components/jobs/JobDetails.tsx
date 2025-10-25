@@ -251,7 +251,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ candidate, onClose }) => {
                     {/* Personal Info */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center bg-light-background dark:bg-background p-4 rounded-lg">
                         <div><strong className="block text-light-text-secondary dark:text-text-secondary text-sm">Idade</strong>{candidate.age} anos</div>
-                        <div><strong className="block text-light-text-secondary dark:text-text-secondary text-sm">Cidade</strong>{candidate.location.split('(')[0]}</div>
+                        <div><strong className="block text-light-text-secondary dark:text-text-secondary text-sm">Cidade</strong>{candidate.location ? candidate.location.split('(')[0] : 'Não informada'}</div>
                         <div><strong className="block text-light-text-secondary dark:text-text-secondary text-sm">Estado Civil</strong>{candidate.maritalStatus}</div>
                         <div><strong className="block text-light-text-secondary dark:text-text-secondary text-sm">Escolaridade</strong>{candidate.education}</div>
                     </div>

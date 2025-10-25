@@ -187,12 +187,18 @@ const ApplicationForm: React.FC<ApplicationFormProps> = (props) => {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const newId = onAddCandidate({ ...formData, resumeFile: resumeDataUrl });
-        setSubmittedCandidateId(newId);
-        setView('success');
-        window.scrollTo(0, 0);
+        try {
+            const newId = await onAddCandidate({ ...formData, resumeFile: resumeDataUrl });
+            setSubmittedCandidateId(newId);
+            setView('success');
+            window.scrollTo(0, 0);
+        } catch (error) {
+            console.error("Failed to submit application:", error);
+            // Optionally, show an error message to the user
+            alert("Ocorreu um erro ao enviar sua inscrição. Por favor, tente novamente.");
+        }
     };
     
     const handleStatusCheckSubmit = (e: React.FormEvent) => {

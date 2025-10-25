@@ -372,3 +372,71 @@ export const generateInterviewInvitationMessage = async (candidateName: string):
         return null;
     }
 };
+
+export const analyzeResumeWithAI = async (resumeDataUrl: string): Promise<string | null> => {
+    if (!ai) return "A funcionalidade de IA está desativada.";
+
+    try {
+        const pdfjsLib = await import('pdfjs-dist');
+
+        // Construct the worker URL in a way that Vite can handle
+        const workerUrl = new URL(
+            'pdfjs-dist/build/pdf.worker.min.mjs',
+            import.meta.url
+        );
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl.toString();
+
+        // Convert data URL to ArrayBuffer
+        const base64 = resumeDataUrl.split(',')[1];
+        const binaryString = window.atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        const arrayBuffer = bytes.buffer;
+
+        // Load PDF and extract text
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            fullText += textContent.items.map(item => item.str).join(' ') + '\n';
+        }
+
+        if (!fullText.trim()) {
+            return "Não foi possível extrair texto do currículo. O arquivo pode estar em branco ou ser uma imagem.";
+        }
+
+        // Send text to Gemini for analysis
+        const prompt = `
+            Analise o seguinte texto extraído de um currículo e forneça um resumo conciso e bem estruturado.
+
+            O resumo deve destacar:
+            1.  As principais áreas de experiência profissional.
+            2.  As competências e habilidades mais relevantes mencionadas.
+            3.  A formação acadêmica.
+            4.  Qualquer outra informação que pareça crucial para um recrutador.
+
+            Texto do Currículo:
+            ---
+            ${fullText}
+            ---
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        return response.text.trim();
+
+    } catch (error) {
+        console.error("Erro ao analisar o currículo com IA:", error);
+        if (error instanceof Error && error.message.includes('Invalid PDF structure')) {
+            return "Erro: O arquivo fornecido não parece ser um PDF válido.";
+        }
+        return "Ocorreu um erro inesperado durante a análise do currículo.";
+    }
+};

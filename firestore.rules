@@ -1,10 +1,53 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read and write access for a limited time for setup.
-    // TODO: Secure these rules before launching to production.
+
+    // Default deny all
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2025, 12, 31);
+      allow read, write: if false;
+    }
+
+    // JOBS: Public read, restricted write
+    match /jobs/{jobId} {
+      allow read: if true; // Allow anyone to see job listings
+      allow create, update, delete: if request.auth != null; // Only authenticated users can manage jobs
+    }
+
+    // CANDIDATES: Public create (applications), restricted access otherwise
+    match /candidates/{candidateId} {
+      allow create: if true; // Anyone can submit an application
+      allow read, update, delete: if request.auth != null; // Only authenticated users can manage candidates
+    }
+
+    // USERS, TALENT POOL, HISTORY, DYNAMICS: Authenticated access only
+    match /users/{userId} {
+      allow read, write: if request.auth != null;
+    }
+    match /talentPool/{talentId} {
+      allow read, write: if request.auth != null;
+    }
+     match /history/{eventId} {
+      allow read, write: if request.auth != null;
+    }
+    match /dynamics/{dynamicId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // MESSAGES: Restricted to participants
+    match /messages/{messageId} {
+      // Allow read only if the user is the sender or receiver
+      allow read: if request.auth != null &&
+                   (request.auth.uid == resource.data.senderId.split('-')[1] ||
+                    request.auth.uid == resource.data.receiverId.split('-')[1]);
+
+      // Allow create only if the senderId matches the authenticated user's ID
+      allow create: if request.auth != null &&
+                     request.auth.uid == request.resource.data.senderId.split('-')[1];
+
+      // Allow update/delete only if the user was the original sender
+      allow update, delete: if request.auth != null &&
+                             request.auth.uid == resource.data.senderId.split('-')[1];
     }
   }
 }

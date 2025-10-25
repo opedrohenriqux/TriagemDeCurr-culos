@@ -273,34 +273,54 @@ function App() {
 
   // Candidate Management
   const handleAddCandidate = async (formData: ApplicationFormData): Promise<string> => {
-    const experiences = formData.professionalExperiences
-        .filter(exp => exp.company.trim() || exp.role.trim() || exp.duration.trim())
-        .map(exp => ({ ...exp, description: '' }));
+    console.log("Received form data:", formData);
+
+    // Defensive validation and sanitization
+    if (!formData.name || !formData.name.trim()) {
+        throw new Error("Validation Error: Candidate name is required.");
+    }
+    if (!formData.jobId) {
+        throw new Error("Validation Error: Job ID is required.");
+    }
+
+    const experiences = (formData.professionalExperiences || [])
+        .map(exp => ({
+            company: (exp.company || '').trim(),
+            role: (exp.role || '').trim(),
+            duration: (exp.duration || '').trim(),
+            description: '',
+        }))
+        .filter(exp => exp.company || exp.role || exp.duration);
         
-    if (experiences.length === 0 && formData.hasExperience === 'Sim' && formData.experienceDetails.trim()) {
+    if (experiences.length === 0 && formData.hasExperience === 'Sim' && (formData.experienceDetails || '').trim()) {
          experiences.push({
             company: 'Não especificado',
             role: 'Experiência em lanchonete',
             duration: 'Não especificado',
-            description: formData.experienceDetails
+            description: formData.experienceDetails.trim()
         });
     }
 
-    const courses = formData.complementaryCourses.filter(course => course.name.trim() || course.institution.trim());
+    const courses = (formData.complementaryCourses || [])
+        .map(course => ({
+            name: (course.name || '').trim(),
+            institution: (course.institution || '').trim(),
+        }))
+        .filter(course => course.name || course.institution);
 
     const newCandidateData: Omit<Candidate, 'id'> = {
-        name: formData.name,
+        name: formData.name.trim(),
         age: parseInt(formData.age, 10) || 0,
-        maritalStatus: formData.maritalStatus,
-        location: formData.location,
+        maritalStatus: formData.maritalStatus || 'Não informado',
+        location: (formData.location || 'Não informado').trim(),
         experience: formData.hasExperience === 'Sim' 
-            ? formData.experienceDetails || 'Experiência prévia em lanchonete.' 
+            ? (formData.experienceDetails || 'Experiência prévia em lanchonete.').trim()
             : 'Sem experiência anterior em lanchonete.',
-        education: formData.education,
-        skills: (formData.skills || '').split(',').map(s => s.trim()).filter(s => s),
-        summary: formData.personalSummary,
+        education: formData.education || 'Não informado',
+        skills: (formData.skills || '').split(',').map(s => s.trim()).filter(Boolean),
+        summary: (formData.personalSummary || '').trim(),
         jobId: formData.jobId,
-        fitScore: parseFloat((Math.random() * 4 + 5).toFixed(1)), // Assign a random base score
+        fitScore: parseFloat((Math.random() * 4 + 5).toFixed(1)),
         status: 'applied',
         applicationDate: new Date().toISOString(),
         source: 'Portal de Carreiras',
@@ -309,20 +329,27 @@ function App() {
         resume: {
             professionalExperience: experiences,
             courses: courses,
-            availability: (formData.availability || []).join(', '),
+            availability: (formData.availability || []).join(', ') || 'Não informado',
             contact: {
-                phone: formData.phone || 'Não informado',
-                email: formData.email || 'Não informado'
+                phone: (formData.phone || 'Não informado').trim(),
+                email: (formData.email || 'Não informado').trim()
             },
-            personalSummary: formData.personalSummary,
-            conducaoPropria: formData.transport,
-            motivo: formData.motivation,
-            fiveYearPlan: formData.fiveYearPlan,
+            personalSummary: (formData.personalSummary || '').trim(),
+            conducaoPropria: formData.transport || 'Não informado',
+            motivo: (formData.motivation || '').trim(),
+            fiveYearPlan: (formData.fiveYearPlan || '').trim(),
         }
     };
 
-    const newCandidate = await candidateService.create(newCandidateData);
-    return newCandidate.id;
+    console.log("Preparing to create candidate with sanitized data:", newCandidateData);
+    try {
+        const newCandidate = await candidateService.create(newCandidateData);
+        console.log("Candidate created successfully with ID:", newCandidate.id);
+        return newCandidate.id;
+    } catch (error) {
+        console.error("CRITICAL: Failed to create candidate in Firestore.", error);
+        throw error;
+    }
   };
 
   const handleUpdateCandidate = async (updatedCandidate: Candidate) => {

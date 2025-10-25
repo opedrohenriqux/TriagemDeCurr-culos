@@ -89,6 +89,10 @@ function App() {
 
 
   useEffect(() => {
+    // Listen for public data immediately
+    const jobUnsubscribe = jobService.listen(setJobs);
+    const userUnsubscribe = userService.listen(setUsers);
+
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const existingUsers = await userService.getAll();
@@ -107,29 +111,32 @@ function App() {
 
         setCurrentUser(appUser);
 
+        // Listen for protected data only after login
         const unsubscribes = [
-          jobService.listen(setJobs),
           candidateService.listen(setCandidates),
           talentService.listen(setTalentPool),
           messageService.listen(setMessages),
           historyService.listen(setHistory),
           dynamicService.listen(setDynamics),
-          userService.listen(setUsers),
         ];
 
         return () => unsubscribes.forEach(unsub => unsub());
       } else {
         setCurrentUser(null);
-        setJobs([]);
+        // Clear only protected data on logout
         setCandidates([]);
         setTalentPool([]);
         setMessages([]);
         setHistory([]);
         setDynamics([]);
-        setUsers([]);
       }
     });
-    return () => authUnsubscribe();
+
+    return () => {
+      jobUnsubscribe();
+      userUnsubscribe();
+      authUnsubscribe();
+    };
   }, []);
 
   useEffect(() => {

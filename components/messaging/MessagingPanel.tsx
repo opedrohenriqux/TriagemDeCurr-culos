@@ -141,7 +141,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
         messages.forEach(msg => {
             const partnerId = msg.senderId === currentUser.id ? msg.receiverId : msg.senderId;
             
-            if (!userMap.has(partnerId)) return;
+            if (!userMap.has(partnerId)) return; // Defensively skip messages from/to deleted users
 
             if (!conversations[partnerId]) {
                 const partnerInfo = userMap.get(partnerId);
@@ -188,7 +188,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
                 .map(convo => ({ ...convo, candidate: candidates.find(c => `candidate-${c.id}` === convo.partner.id) }))
                 .filter(convo => {
                     if (!convo.candidate) {
-                        return false;
+                        return false; // Defensively filter out conversations where candidate was deleted
                     }
                     const nameMatch = convo.partner.name.toLowerCase().includes(searchTerm.toLowerCase());
                     const jobMatch = jobFilter === 'all' || convo.candidate.jobId === jobFilter;

@@ -3,51 +3,64 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny all
-    match /{document=**} {
-      allow read, write: if false;
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // JOBS: Public read, restricted write
+    // Helper function to check if the user is the owner of the document
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // JOBS: Public can read, only admins can write.
     match /jobs/{jobId} {
-      allow read: if true; // Allow anyone to see job listings
-      allow create, update, delete: if request.auth != null; // Only authenticated users can manage jobs
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    // CANDIDATES: Public create (applications), restricted access otherwise
+    // CANDIDATES: Anyone can create (apply). Only admins or the candidate themselves can read/update.
+    // Note: The current app logic for status checks doesn't authenticate the candidate, so they can't read their own data yet.
+    // This rule is prepared for a future where candidates might log in. For now, only admins can manage this.
     match /candidates/{candidateId} {
       allow create: if true; // Anyone can submit an application
-      allow read, update, delete: if request.auth != null; // Only authenticated users can manage candidates
+      allow read, update: if isAdmin(); // Only admins can see and modify all candidate data
+      allow delete: if isAdmin();
     }
 
-    // USERS, TALENT POOL, HISTORY, DYNAMICS: Authenticated access only
+    // USERS: Only admins can read all users. A user can read/update their own data.
     match /users/{userId} {
-      allow read, write: if request.auth != null;
+      allow read, update: if isAdmin() || isOwner(userId);
+      allow create, delete: if isAdmin();
     }
+
+    // TALENT POOL, HISTORY, DYNAMICS: Only admins can access.
     match /talentPool/{talentId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
-     match /history/{eventId} {
-      allow read, write: if request.auth != null;
+    match /history/{eventId} {
+      allow read, write: if isAdmin();
     }
     match /dynamics/{dynamicId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
 
-    // MESSAGES: Restricted to participants
+    // MESSAGES: Only participants in the conversation can read or write.
     match /messages/{messageId} {
-      // Allow read only if the user is the sender or receiver
+      // Allow read if the authenticated user's ID is part of the sender or receiver ID string.
+      // e.g., senderId could be 'user-UID' or 'candidate-CANDIDATE_ID'
       allow read: if request.auth != null &&
-                   (request.auth.uid == resource.data.senderId.split('-')[1] ||
-                    request.auth.uid == resource.data.receiverId.split('-')[1]);
+                   (request.resource.data.senderId.matches('.*' + request.auth.uid + '.*') ||
+                    request.resource.data.receiverId.matches('.*' + request.auth.uid + '.*'));
 
-      // Allow create only if the senderId matches the authenticated user's ID
+      // Allow creation if the senderId string contains the authenticated user's UID.
       allow create: if request.auth != null &&
-                     request.auth.uid == request.resource.data.senderId.split('-')[1];
+                     request.resource.data.senderId.matches('.*' + request.auth.uid + '.*');
 
-      // Allow update/delete only if the user was the original sender
+      // Allow update/delete only if the user was the original sender.
       allow update, delete: if request.auth != null &&
-                             request.auth.uid == resource.data.senderId.split('-')[1];
+                             resource.data.senderId.matches('.*' + request.auth.uid + '.*');
     }
   }
 }

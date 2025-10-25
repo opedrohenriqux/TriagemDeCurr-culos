@@ -584,15 +584,20 @@ function App() {
     await Promise.all(updatePromises);
   };
 
-  const handleDeleteConversation = (partnerId: string) => {
+  const handleDeleteConversation = async (partnerId: string) => {
     if (!currentUser) return;
     const currentUserId = `user-${currentUser.id}`;
-    setMessages(prev => prev.filter(msg => 
-        !((msg.senderId === currentUserId && msg.receiverId === partnerId) || 
-          (msg.senderId === partnerId && msg.receiverId === currentUserId))
-    ));
+
+    const messagesToDelete = messages.filter(msg =>
+        (msg.senderId === currentUserId && msg.receiverId === partnerId) ||
+        (msg.senderId === partnerId && msg.receiverId === currentUserId)
+    );
+
+    const deletePromises = messagesToDelete.map(msg => messageService.delete(msg.id));
+    await Promise.all(deletePromises);
+
     logHistory('DELETE_CONVERSATION', `Excluiu a conversa com '${partnerId}'.`);
-    // Close the panel if the currently viewed conversation is deleted
+
     if (messagingState.preselectedId === partnerId) {
         handleCloseMessaging();
     }

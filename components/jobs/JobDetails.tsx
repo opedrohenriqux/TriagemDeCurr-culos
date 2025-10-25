@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Candidate, AIAnalysis, Job, CandidateStatus, Resume, CandidateInterview, User } from '../../types';
 import InterviewSchedulerModal from '../schedules/InterviewSchedulerModal';
 import BulkInterviewSchedulerModal from '../schedules/BulkInterviewSchedulerModal';
-import { analyzeCandidateWithAI } from '../../services/geminiService';
+import { analyzeCandidateWithAI, analyzeResumeWithAI } from '../../services/geminiService';
 import InitialsAvatar from '../common/InitialsAvatar';
 import Pagination from '../common/Pagination';
 
@@ -335,6 +335,27 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
     const [isLoading, setIsLoading] = useState(false);
     const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isAnalyzingResume, setIsAnalyzingResume] = useState(false);
+    const [resumeAnalysisResult, setResumeAnalysisResult] = useState<string | null>(null);
+
+    const handleResumeAnalysis = async () => {
+        if (!candidate.resumeUrl) return;
+
+        setIsAnalyzingResume(true);
+        setResumeAnalysisResult(null);
+        setError(null);
+
+        const result = await analyzeResumeWithAI(candidate.resumeUrl);
+
+        if (result) {
+            setResumeAnalysisResult(result);
+        } else {
+            setError("Falha ao analisar o currículo.");
+            setResumeAnalysisResult("Ocorreu um erro durante a análise. Por favor, tente novamente.");
+        }
+
+        setIsAnalyzingResume(false);
+    };
 
     const handleAnalyze = async () => {
         setIsLoading(true);
@@ -382,7 +403,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
                                 <p className="text-light-text-secondary dark:text-text-secondary">{candidate.location}</p>
                                 <div className="mt-3 flex items-center gap-4">
                                     <button type="button" onClick={onViewResume} className="text-sm text-light-primary dark:text-primary font-semibold hover:text-light-primary-hover dark:hover:text-primary-hover">
-                                        Visualizar Currículo Completo
+                                        Visualizar Informações
                                     </button>
                                      {candidate.resumeUrl && (
                                         <a
@@ -469,6 +490,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
                                     <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Resumo da IA</h5>
                                     <p className="text-sm text-light-text-secondary dark:text-text-secondary">{analysis.summary}</p>
                                 </div>
+                                {resumeAnalysisResult && (
+                                    <div>
+                                        <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Análise de Currículo</h5>
+                                        <p className="text-sm text-light-text-secondary dark:text-text-secondary whitespace-pre-wrap">{resumeAnalysisResult}</p>
+                                    </div>
+                                )}
                                 <div>
                                     <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Pontos Fortes</h5>
                                     <ul className="list-disc list-inside text-sm text-light-text-secondary dark:text-text-secondary">
@@ -498,6 +525,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
                     </div>
                 </div>
                  <div className="p-4 border-t border-light-border dark:border-border flex justify-end gap-2 flex-shrink-0">
+                    <button
+                        type="button"
+                        onClick={handleResumeAnalysis}
+                        disabled={!candidate.resumeUrl || isAnalyzingResume}
+                        className="bg-blue-400/20 text-blue-600 dark:bg-blue-600/20 dark:text-blue-400 font-bold px-4 py-2 rounded-lg hover:bg-blue-400/40 dark:hover:bg-blue-600/40 transition-colors text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isAnalyzingResume ? <Spinner /> : null}
+                        Análise de Currículo
+                    </button>
                     <button 
                         type="button"
                         onClick={() => { onArchiveCandidate(candidate.id); onClose(); }} 

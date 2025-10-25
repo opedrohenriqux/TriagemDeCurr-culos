@@ -1,14 +1,18 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { Candidate, AIAnalysis, Job, User, Message } from '../types';
 
-// FIX: Per coding guidelines, API key must be read directly from process.env when initializing the client.
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY não foi encontrada. Por favor, configure a variável de ambiente.");
+let ai: GoogleGenAI | null = null;
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+if (apiKey) {
+  ai = new GoogleGenAI({ apiKey });
+} else {
+  console.warn("VITE_GEMINI_API_KEY não foi encontrada. As funcionalidades de IA serão desativadas.");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const analyzeCandidateWithAI = async (candidate: Candidate, jobTitle: string): Promise<AIAnalysis | null> => {
+  if (!ai) return null;
+
   const prompt = `
     Análise de Candidato para a vaga de ${jobTitle} no restaurante Lacoste Burger.
 
@@ -29,7 +33,6 @@ export const analyzeCandidateWithAI = async (candidate: Candidate, jobTitle: str
   `;
 
   try {
-    // FIX: Per coding guidelines, ai.models.generateContent must be called directly.
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -69,6 +72,8 @@ export const analyzeCandidateWithAI = async (candidate: Candidate, jobTitle: str
 };
 
 export const getDecisionSupportSummary = async (candidate: Candidate, job: Job, feedbackNotes: string, dynamicNotes?: string): Promise<string | null> => {
+  if (!ai) return null;
+
   const dynamicNotesSection = dynamicNotes ? `
     **Anotações da Dinâmica de Grupo sobre o Candidato:**
     ---
@@ -108,7 +113,9 @@ export const getDecisionSupportSummary = async (candidate: Candidate, job: Job, 
 };
 
 
-export const summarizeInterviewFeedback = async (candidate: Candidate, job: Job, feedbackNotes: string, decision: 'offer' | 'rejected' | 'waitlist', dynamicNotes?: string): Promise<string | null> => {
+export const summarizeInterviewFeedback = async (candidate: Candidate, job: Job, decision: 'offer' | 'rejected' | 'waitlist', feedbackNotes?: string, dynamicNotes?: string): Promise<string | null> => {
+  if (!ai) return null;
+
   const decisionText = decision === 'offer' ? 'aprovado para a próxima fase (oferta)' : decision === 'rejected' ? 'rejeitado' : 'colocado em lista de espera';
   
   const dynamicNotesSection = dynamicNotes ? `
@@ -125,7 +132,7 @@ export const summarizeInterviewFeedback = async (candidate: Candidate, job: Job,
 
     **Anotações do Recrutador sobre a Entrevista Individual:**
     ---
-    ${feedbackNotes}
+    ${feedbackNotes || 'Nenhuma anotação fornecida.'}
     ---
     ${dynamicNotesSection}
     **Sua Tarefa:**
@@ -150,6 +157,8 @@ export const summarizeInterviewFeedback = async (candidate: Candidate, job: Job,
 };
 
 export const generateApprovalEmail = async (candidate: Candidate, job: Job): Promise<string | null> => {
+  if (!ai) return null;
+
   const prompt = `
     Escreva um e-mail profissional e amigável para o candidato "${candidate.name}" parabenizando-o por ter sido aprovado na fase de triagem inicial para a vaga de "${job.title}" no restaurante Lacoste Burger.
 
@@ -176,6 +185,8 @@ export const generateApprovalEmail = async (candidate: Candidate, job: Job): Pro
 };
 
 export const getAIResponseForChat = async (prompt: string, jobs: Job[], candidates: Candidate[]): Promise<string | null> => {
+  if (!ai) return "A funcionalidade de IA está temporariamente indisponível. A chave de API não foi configurada corretamente.";
+
   try {
     const simplifiedJobs = jobs.map(j => ({ id: j.id, title: j.title, department: j.department, status: j.status }));
     const simplifiedCandidates = candidates.map(c => ({ id: c.id, name: c.name, jobId: c.jobId, status: c.status, fitScore: c.fitScore?.toFixed(1) }));
@@ -292,6 +303,8 @@ export const getSuggestedReplies = async (
   job: Job,
   currentUser: User
 ): Promise<string[] | null> => {
+  if (!ai) return null;
+
   const lastFiveMessages = conversationHistory.slice(-5).map(m =>
     `${m.senderId.startsWith('user') ? currentUser.username : candidate.name}: ${m.text}`
   ).join('\n');
@@ -341,6 +354,8 @@ export const getSuggestedReplies = async (
 };
 
 export const generateInterviewInvitationMessage = async (candidateName: string): Promise<string | null> => {
+    if (!ai) return null;
+
     const prompt = `
         Gere uma mensagem curta, amigável e profissional para ser enviada via chat para o candidato "${candidateName}".
         A mensagem deve parabenizá-lo por ter sido aprovado na triagem inicial e convidá-lo para agendar uma entrevista, perguntando sobre sua disponibilidade de dias e horários.

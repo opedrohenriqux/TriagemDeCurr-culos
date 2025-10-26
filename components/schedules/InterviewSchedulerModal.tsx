@@ -120,12 +120,33 @@ const InterviewSchedulerModal: React.FC<InterviewSchedulerModalProps> = ({ isOpe
             setCurrentMonth(new Date());
             setNoShow(candidate.interview?.noShow || false);
 
-            // Set initial form state
-            const initialDate = candidate.interview ? new Date(candidate.interview.date + 'T00:00:00') : new Date();
+            // --- Safely set initial form state ---
+            const defaultInterview: CandidateInterview = {
+                date: new Date().toISOString().split('T')[0],
+                time: '',
+                location: 'Online (Google Meet)',
+                interviewers: [],
+                notes: '',
+            };
+
+            const existingInterview = candidate.interview;
+            const initialDetails = { ...defaultInterview, ...existingInterview };
+
+            let initialDate: Date;
+            // Validate the date from existing interview data
+            if (existingInterview?.date) {
+                const parsedDate = new Date(existingInterview.date + 'T00:00:00');
+                // Check if the parsed date is valid. If not, use today's date.
+                initialDate = !isNaN(parsedDate.getTime()) ? parsedDate : new Date();
+            } else {
+                initialDate = new Date();
+            }
+
+            // Ensure the date in details matches the final initialDate
+            initialDetails.date = initialDate.toISOString().split('T')[0];
+
             setSelectedDate(initialDate);
-            setDetails(candidate.interview || {
-                date: initialDate.toISOString().split('T')[0], time: '', location: 'Online (Google Meet)', interviewers: [], notes: '',
-            });
+            setDetails(initialDetails);
 
             // --- Generate AI Suggestions ---
             const bookedSlots = new Set<string>();

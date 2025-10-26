@@ -2,11 +2,11 @@ import { User, Job, Candidate, Talent, Resume, CandidateStatus, CandidateIntervi
 
 // FIX: Added 'role' and 'specialty' to all users for data consistency and to enable new features.
 export const USERS: User[] = [
-  { id: '1', username: 'Pedro', password: 'Pedro', role: 'admin', specialty: 'Generalista' },
-  { id: '2', username: 'Marcos', password: 'Marcos', role: 'admin', specialty: 'Cozinha' },
-  { id: '3', username: 'ruan@lacoste.com', password: 'Ruan', role: 'admin', specialty: 'Marketing' },
-  { id: '4', username: 'Luan', password: 'Luan', role: 'admin', specialty: 'Financeiro' },
-  { id: '5', username: 'samuel@lacoste.com', password: 'Samuel', role: 'admin', specialty: 'Administrativo' },
+  { id: 1, username: 'Pedro', password: 'Pedro', role: 'admin', specialty: 'Generalista' },
+  { id: 2, username: 'Marcos', password: 'Marcos', role: 'admin', specialty: 'Cozinha' },
+  { id: 3, username: 'ruan@lacoste.com', password: 'Ruan', role: 'admin', specialty: 'Marketing' },
+  { id: 4, username: 'Luan', password: 'Luan', role: 'admin', specialty: 'Financeiro' },
+  { id: 5, username: 'samuel@lacoste.com', password: 'Samuel', role: 'admin', specialty: 'Administrativo' },
 ];
 
 export const INITIAL_JOBS: Job[] = [

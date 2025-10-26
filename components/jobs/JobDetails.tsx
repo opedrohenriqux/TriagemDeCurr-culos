@@ -333,10 +333,18 @@ interface ProfileModalProps {
 
 const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClose, onAnalysisComplete, onUpdateCandidate, onViewResume, onArchiveCandidate }) => {
     const [isLoading, setIsLoading] = useState(false);
-    const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
+    const [analysis, setAnalysis] = useState<AIAnalysis | null>(candidate.aiAnalysis || null);
     const [error, setError] = useState<string | null>(null);
     const [isAnalyzingResume, setIsAnalyzingResume] = useState(false);
     const [resumeAnalysisResult, setResumeAnalysisResult] = useState<string | null>(null);
+
+    useEffect(() => {
+        // Se já existe uma análise, exiba-a. Se não, pode-se optar por buscar automaticamente.
+        // Por enquanto, a busca é manual através do botão "Analisar".
+        if (candidate.aiAnalysis) {
+            setAnalysis(candidate.aiAnalysis);
+        }
+    }, [candidate.aiAnalysis]);
 
     const handleResumeAnalysis = async () => {
         if (!candidate.resumeUrl) return;
@@ -367,6 +375,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
         if (result) {
             setAnalysis(result);
             onAnalysisComplete(candidate.id, result);
+
+            // Salva a análise no perfil do candidato
+            const updatedCandidate = { ...candidate, aiAnalysis: result };
+            onUpdateCandidate(updatedCandidate);
+
         } else {
             setError("Não foi possível concluir a análise. Verifique sua conexão ou a configuração da API e tente novamente.");
         }

@@ -83,6 +83,7 @@ export interface Candidate {
     interview?: CandidateInterview;
     hireDate?: string;
     resumeUrl?: string;
+    aiAnalysis?: AIAnalysis;
 }
 
 export interface Talent {

@@ -26,7 +26,10 @@ const NewConversationModal: React.FC<NewConversationModalProps> = ({ type, candi
                 .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                 .map(c => ({ id: `candidate-${c.id}`, name: c.name }));
         } else { // team
-            const currentUserId = currentUser.id.split('-')[1];
+            // Defensively handle currentUser.id, which might not have a prefix
+            const currentUserId = currentUser.id.startsWith('user-')
+                ? currentUser.id.split('-')[1]
+                : currentUser.id;
             return users
                 .filter(u => u.id !== currentUserId)
                 .filter(u => !existingPartnerIds.has(`user-${u.id}`))
@@ -131,22 +134,28 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
     const userMap = useMemo(() => {
         const map = new Map<string, { name: string; avatar?: string }>();
         users.forEach(u => map.set(`user-${u.id}`, { name: u.username }));
+        return map;
+    }, [users]);
+
+    const candidateMap = useMemo(() => {
+        const map = new Map<string, { name: string; avatar?: string }>();
         candidates.forEach(c => map.set(`candidate-${c.id}`, { name: c.name, avatar: c.avatarUrl }));
         return map;
-    }, [users, candidates]);
+    }, [candidates]);
 
     const allConversations = useMemo(() => {
+        const combinedUserMap = new Map([...userMap, ...candidateMap]);
         const conversations: { [key: string]: { partner: { id: string, name: string }, messages: Message[] } } = {};
 
         messages.forEach(msg => {
             const partnerId = msg.senderId === currentUser.id ? msg.receiverId : msg.senderId;
             
-            if (!userMap.has(partnerId)) return; // Defensively skip messages from/to deleted users
+            if (!combinedUserMap.has(partnerId)) return;
 
             if (!conversations[partnerId]) {
-                const partnerInfo = userMap.get(partnerId);
+                const partnerInfo = combinedUserMap.get(partnerId);
                 if (partnerInfo) {
-                     conversations[partnerId] = {
+                    conversations[partnerId] = {
                         partner: { id: partnerId, name: partnerInfo.name },
                         messages: []
                     };
@@ -167,7 +176,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
                 unreadCount: unreadCount
             };
         });
-    }, [messages, currentUser.id, userMap]);
+    }, [messages, currentUser.id, userMap, candidateMap]);
 
     const displayedConversations = useMemo(() => {
         // 1. Filter by archive status and tab type first

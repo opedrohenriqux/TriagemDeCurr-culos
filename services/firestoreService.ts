@@ -48,6 +48,32 @@ const createFirestoreService = <T>(collectionName: string) => {
   };
 };
 
+// Service for the single active timer document
+const createSingletonService = <T>(collectionName: string, documentId: string) => {
+    const docRef = doc(db, collectionName, documentId);
+
+    return {
+        get: async (): Promise<T | null> => {
+            const docSnap = await getDoc(docRef);
+            return docSnap.exists() ? (docSnap.data() as T) : null;
+        },
+        listen: (callback: (data: T | null) => void): (() => void) => {
+            return onSnapshot(docRef, (doc) => {
+                callback(doc.exists() ? (doc.data() as T) : null);
+            });
+        },
+        set: async (data: T): Promise<void> => {
+            await setDoc(docRef, sanitizeData(data));
+        },
+        update: async (data: Partial<T>): Promise<void> => {
+            await updateDoc(docRef, sanitizeData(data));
+        },
+        delete: async (): Promise<void> => {
+            await deleteDoc(docRef);
+        }
+    };
+};
+
 // Export services for each collection
 export const jobService = createFirestoreService<Job>('jobs');
 export const candidateService = createFirestoreService<Candidate>('candidates');
@@ -56,3 +82,4 @@ export const messageService = createFirestoreService<Message>('messages');
 export const historyService = createFirestoreService<HistoryEvent>('history');
 export const dynamicService = createFirestoreService<Dynamic>('dynamics');
 export const userService = createFirestoreService<User>('users');
+export const activeTimerService = createSingletonService<ActiveDynamicTimer>('appState', 'activeTimer');

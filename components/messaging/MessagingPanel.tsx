@@ -30,7 +30,7 @@ const NewConversationModal: React.FC<NewConversationModalProps> = ({ type, candi
             return users
                 .filter(u => u.id !== currentUserId)
                 .filter(u => !existingPartnerIds.has(`user-${u.id}`))
-                .sort((a, b) => a.username.localeCompare(b.username))
+                .sort((a, b) => (a.username || '').localeCompare(b.username || ''))
                 .map(u => ({ id: `user-${u.id}`, name: u.username }));
         }
     }, [type, candidates, users, currentUser, conversations]);

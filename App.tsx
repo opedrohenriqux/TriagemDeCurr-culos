@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser } from 'firebase/auth';
 import LoginScreen from './components/auth/LoginScreen';
 import MainLayout, { View } from './components/layout/MainLayout';
@@ -43,15 +43,23 @@ function App() {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'saved' | 'error'>('idle');
   const syncTimeoutRef = useRef<number | null>(null);
 
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [talentPool, setTalentPool] = useState<Talent[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [_rawJobs, _setRawJobs] = useState<Job[]>([]);
+  const [_rawCandidates, _setRawCandidates] = useState<Candidate[]>([]);
+  const [_rawTalentPool, _setRawTalentPool] = useState<Talent[]>([]);
+  const [_rawMessages, _setRawMessages] = useState<Message[]>([]);
   const [archivedConversations, setArchivedConversations] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<HistoryEvent[]>([]);
-  const [dynamics, setDynamics] = useState<Dynamic[]>([]);
+  const [_rawDynamics, _setRawDynamics] = useState<Dynamic[]>([]);
   const [activeDynamicTimer, setActiveDynamicTimer] = useState<ActiveDynamicTimer | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
+  const [_rawUsers, _setRawUsers] = useState<User[]>([]);
+
+  // Memoize props to stabilize references and prevent unnecessary re-renders in child components.
+  const jobs = useMemo(() => _rawJobs, [_rawJobs]);
+  const candidates = useMemo(() => _rawCandidates, [_rawCandidates]);
+  const talentPool = useMemo(() => _rawTalentPool, [_rawTalentPool]);
+  const messages = useMemo(() => _rawMessages, [_rawMessages]);
+  const dynamics = useMemo(() => _rawDynamics, [_rawDynamics]);
+  const users = useMemo(() => _rawUsers, [_rawUsers]);
 
 
   const [activeReminder, setActiveReminder] = useState<{ candidate: Candidate; type: 'reminder' | 'now' } | null>(null);
@@ -90,8 +98,8 @@ function App() {
 
   useEffect(() => {
     // Listen for public data immediately
-    const jobUnsubscribe = jobService.listen(setJobs);
-    const userUnsubscribe = userService.listen(setUsers);
+    const jobUnsubscribe = jobService.listen(_setRawJobs);
+    const userUnsubscribe = userService.listen(_setRawUsers);
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -113,11 +121,11 @@ function App() {
 
         // Listen for protected data only after login
         const unsubscribes = [
-          candidateService.listen(setCandidates),
-          talentService.listen(setTalentPool),
-          messageService.listen(setMessages),
+          candidateService.listen(_setRawCandidates),
+          talentService.listen(_setRawTalentPool),
+          messageService.listen(_setRawMessages),
           historyService.listen(setHistory),
-          dynamicService.listen(setDynamics),
+          dynamicService.listen(_setRawDynamics),
           activeTimerService.listen(setActiveDynamicTimer),
         ];
 
@@ -125,11 +133,11 @@ function App() {
       } else {
         setCurrentUser(null);
         // Clear only protected data on logout
-        setCandidates([]);
-        setTalentPool([]);
-        setMessages([]);
+        _setRawCandidates([]);
+        _setRawTalentPool([]);
+        _setRawMessages([]);
         setHistory([]);
-        setDynamics([]);
+        _setRawDynamics([]);
       }
     });
 
@@ -667,29 +675,29 @@ function App() {
 
   // Archive Management
   const handleRestoreAll = () => {
-    setJobs(prev => prev.map(j => ({...j, status: 'active'})));
-    setCandidates(prev => prev.map(c => ({...c, isArchived: false})));
-    setTalentPool(prev => prev.map(t => ({...t, isArchived: false})));
+    _setRawJobs(prev => prev.map(j => ({...j, status: 'active'})));
+    _setRawCandidates(prev => prev.map(c => ({...c, isArchived: false})));
+    _setRawTalentPool(prev => prev.map(t => ({...t, isArchived: false})));
     logHistory('RESTORE_ALL', 'Restaurou todos os itens do arquivo.');
   };
 
   const handleDeleteAllPermanently = () => {
-    setJobs(prev => prev.filter(j => j.status !== 'archived'));
-    setCandidates(prev => prev.filter(c => !c.isArchived));
-    setTalentPool(prev => prev.filter(t => !t.isArchived));
+    _setRawJobs(prev => prev.filter(j => j.status !== 'archived'));
+    _setRawCandidates(prev => prev.filter(c => !c.isArchived));
+    _setRawTalentPool(prev => prev.filter(t => !t.isArchived));
     logHistory('DELETE_ALL', 'Excluiu permanentemente todos os itens do arquivo.');
   };
 
   // Dynamics Management
   const handleAddDynamic = async (dynamicData: Omit<Dynamic, 'id'>) => {
     const newDynamic = await dynamicService.create(dynamicData);
-    setDynamics(prev => [newDynamic, ...prev]);
+    _setRawDynamics(prev => [newDynamic, ...prev]);
     logHistory('CREATE_DYNAMIC', `Criou a dinâmica '${newDynamic.title}'.`);
   };
 
   const handleUpdateDynamic = async (updatedDynamic: Dynamic) => {
     await dynamicService.update(updatedDynamic.id, updatedDynamic);
-    setDynamics(prev => prev.map(d => d.id === updatedDynamic.id ? updatedDynamic : d));
+    _setRawDynamics(prev => prev.map(d => d.id === updatedDynamic.id ? updatedDynamic : d));
     logHistory('UPDATE_DYNAMIC', `Atualizou a dinâmica '${updatedDynamic.title}'.`);
   };
 
@@ -697,7 +705,7 @@ function App() {
     const dynamicToDelete = dynamics.find(d => d.id === dynamicId);
     if (dynamicToDelete) {
         await dynamicService.delete(dynamicId);
-        setDynamics(prev => prev.filter(d => d.id !== dynamicId));
+        _setRawDynamics(prev => prev.filter(d => d.id !== dynamicId));
         logHistory('DELETE_DYNAMIC', `Excluiu a dinâmica '${dynamicToDelete.title}'.`);
     }
   };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Dynamic, Candidate, ActiveDynamicTimer } from '../../types';
 import InitialsAvatar from '../common/InitialsAvatar';
+import { speak } from '../../services/speechService';
 
 interface DynamicViewerModalProps {
     isOpen: boolean;
@@ -27,11 +28,11 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
 
     // Timer State
     const [initialMinutes, setInitialMinutes] = useState(15);
-    const [timerMode, setTimerMode] = useState<'countdown' | 'countup'>('countdown');
     const [displayTime, setDisplayTime] = useState(initialMinutes * 60);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [announcedMilestones, setAnnouncedMilestones] = useState<Set<string>>(new Set());
 
-    const audioCtxRef = useRef<AudioContext | null>(null);
+
     const intervalRef = useRef<number | null>(null);
     const modalRef = useRef<HTMLDivElement>(null);
 
@@ -47,54 +48,52 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
             document.exitFullscreen();
         }
     };
-
-    // Function to play a sound
-    const playBeep = (frequency = 440, duration = 100) => {
-        if (!audioCtxRef.current) {
-            audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        }
-        const audioCtx = audioCtxRef.current;
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
-        const oscillator = audioCtx.createOscillator();
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-        oscillator.connect(audioCtx.destination);
-        oscillator.start();
-        setTimeout(() => {
-            oscillator.stop();
-        }, duration);
-    };
     
     // Effect for the timer display logic
     useEffect(() => {
         const updateDisplay = () => {
             if (activeDynamicTimer && activeDynamicTimer.dynamicId === dynamic.id) {
                 if (!activeDynamicTimer.isRunning) {
-                     if (activeDynamicTimer.startTime === null) { // Reset state
-                        setDisplayTime(activeDynamicTimer.mode === 'countdown' ? activeDynamicTimer.duration : 0);
+                     if (activeDynamicTimer.startTime === null) {
+                        setDisplayTime(activeDynamicTimer.duration);
+                        setAnnouncedMilestones(new Set());
                     }
-                    // If paused, the time is frozen, no need to update display continuously
                     return;
                 }
 
                 const elapsed = (Date.now() - activeDynamicTimer.startTime) / 1000;
-                
-                if (activeDynamicTimer.mode === 'countdown') {
-                    const remaining = Math.max(0, activeDynamicTimer.duration - elapsed);
-                    setDisplayTime(remaining);
-                    if (remaining === 0) {
-                        onPauseDynamicTimer();
-                        playBeep(880, 500); // End beep
-                    } else if (Math.floor(remaining) > 0 && Math.floor(remaining) % 60 === 0 && Math.floor(remaining) !== Math.floor(displayTime)) {
-                        playBeep(); // Minute beep
+                const remaining = Math.max(0, activeDynamicTimer.duration - elapsed);
+                setDisplayTime(remaining);
+
+                const remainingMinutes = Math.floor(remaining / 60);
+
+                const checkAndAnnounce = (milestone: string, text: string) => {
+                    if (milestone !== 'start' && !announcedMilestones.has('start')) {
+                        return;
                     }
-                } else { // countup
-                    setDisplayTime(elapsed);
-                    if (Math.floor(elapsed) > 0 && Math.floor(elapsed) % 60 === 0 && Math.floor(elapsed) !== Math.floor(displayTime)) {
-                        playBeep();
+                    if (!announcedMilestones.has(milestone)) {
+                        speak(text);
+                        setAnnouncedMilestones(prev => new Set(prev).add(milestone));
                     }
+                };
+
+                // Lógica de anúncios combinada
+                if (remaining < 11 && remaining > 0) {
+                    const second = Math.floor(remaining);
+                    if (second > 0) {
+                        checkAndAnnounce(`countdown-${second}`, `${second}`);
+                    }
+                } else if (remainingMinutes < 1 && remaining > 10) {
+                    checkAndAnnounce('final-minute', 'Candidatos, minuto final');
+                } else if (remainingMinutes > 0 && remainingMinutes % 5 === 0) {
+                    if (Math.abs(remaining - (remainingMinutes * 60)) < 1) {
+                       checkAndAnnounce(`${remainingMinutes}-minutes`, `Candidatos, faltam ${remainingMinutes} minutos`);
+                    }
+                }
+
+                if (remaining === 0) {
+                    checkAndAnnounce('end', 'Tempo encerrado');
+                    onPauseDynamicTimer();
                 }
             } else {
                  setDisplayTime(initialMinutes * 60);
@@ -102,13 +101,13 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
         };
 
         if (intervalRef.current) clearInterval(intervalRef.current);
-        intervalRef.current = window.setInterval(updateDisplay, 250); // Update display frequently
+        intervalRef.current = window.setInterval(updateDisplay, 500); // Intervalo um pouco maior é suficiente
 
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
 
-    }, [activeDynamicTimer, dynamic.id, displayTime, onPauseDynamicTimer, initialMinutes]);
+    }, [activeDynamicTimer, dynamic.id, onPauseDynamicTimer, initialMinutes, announcedMilestones]);
 
 
     useEffect(() => {
@@ -127,10 +126,8 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
         // Reset local UI state when modal opens/changes dynamic
         if(activeDynamicTimer?.dynamicId === dynamic.id){
             setInitialMinutes(activeDynamicTimer.duration / 60);
-            setTimerMode(activeDynamicTimer.mode);
         } else {
             setInitialMinutes(15);
-            setTimerMode('countdown');
         }
 
     }, [dynamic, isOpen, activeDynamicTimer]);
@@ -165,7 +162,11 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
     };
 
     const handleStartTimer = () => {
-        onStartDynamicTimer(dynamic.id, initialMinutes, timerMode);
+        // Garante que o anúncio de início seja o primeiro e único no começo.
+        const startMilestone = new Set(['start']);
+        setAnnouncedMilestones(startMilestone);
+        speak("Candidatos, cronômetro iniciado");
+        onStartDynamicTimer(dynamic.id, initialMinutes, 'countdown');
     };
     
     const handleResumeOrPause = () => {
@@ -243,7 +244,7 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                             
                             {activeDynamicTimer?.dynamicId !== dynamic.id ? (
                                 <button
-                                    onClick={() => onStartDynamicTimer(dynamic.id, initialMinutes, timerMode)}
+                                    onClick={() => onStartDynamicTimer(dynamic.id, initialMinutes, 'countdown')}
                                     className="w-full bg-light-primary dark:bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-light-primary-hover dark:hover:bg-primary-hover transition-colors"
                                 >
                                     Iniciar Timer
@@ -254,24 +255,15 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                                         <h4 className="text-6xl font-bold font-mono tracking-wider text-light-text-primary dark:text-text-primary">{formatTime(displayTime)}</h4>
                                     </div>
                                     
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div>
-                                            <label className="text-xs font-semibold">Duração (min)</label>
-                                            <input 
-                                                type="number"
-                                                value={initialMinutes}
-                                                onChange={(e) => setInitialMinutes(parseInt(e.target.value) || 1)}
-                                                disabled={isTimerRunning}
-                                                className="w-full mt-1 p-2 bg-light-surface dark:bg-surface border border-light-border dark:border-border rounded-md text-center"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold">Modo</label>
-                                            <div className="w-full mt-1 bg-light-surface dark:bg-surface border border-light-border dark:border-border rounded-lg p-1 flex">
-                                                <button onClick={() => { if(!isTimerRunning) setTimerMode('countdown'); }} disabled={isTimerRunning} className={`w-1/2 text-center text-xs rounded-md py-1 ${timerMode === 'countdown' ? 'bg-light-secondary dark:bg-secondary text-white' : ''}`}>Regressivo</button>
-                                                <button onClick={() => { if(!isTimerRunning) setTimerMode('countup'); }} disabled={isTimerRunning} className={`w-1/2 text-center text-xs rounded-md py-1 ${timerMode === 'countup' ? 'bg-light-secondary dark:bg-secondary text-white' : ''}`}>Progressivo</button>
-                                            </div>
-                                        </div>
+                                    <div className="mb-4">
+                                        <label className="text-xs font-semibold block text-center mb-1">Duração (minutos)</label>
+                                        <input
+                                            type="number"
+                                            value={initialMinutes}
+                                            onChange={(e) => setInitialMinutes(parseInt(e.target.value) || 1)}
+                                            disabled={isTimerRunning}
+                                            className="w-full mt-1 p-2 bg-light-surface dark:bg-surface border border-light-border dark:border-border rounded-md text-center"
+                                        />
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-2">

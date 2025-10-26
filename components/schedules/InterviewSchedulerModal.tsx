@@ -130,6 +130,7 @@ const InterviewSchedulerModal: React.FC<InterviewSchedulerModalProps> = ({ isOpe
     
     useEffect(() => {
         if (isOpen) {
+          try {
             // Reset state
             setError('');
             setCurrentMonth(new Date());
@@ -199,6 +200,14 @@ const InterviewSchedulerModal: React.FC<InterviewSchedulerModalProps> = ({ isOpe
             if (!candidate.interview && suggestedRecruiter) {
                 setDetails(prev => ({ ...prev, interviewers: [suggestedRecruiter!.username] }));
             }
+          } catch (e: any) {
+              console.error("--- Critical Error in InterviewSchedulerModal useEffect ---");
+              console.error("Error:", e);
+              console.error("Timestamp:", new Date().toISOString());
+              console.error("Candidate Prop:", JSON.stringify(candidate, null, 2));
+              console.error("Job variable:", JSON.stringify(job, null, 2));
+              setError(`Ocorreu um erro crítico ao carregar os dados. Por favor, feche e tente novamente. Detalhes: ${e.message}`);
+          }
         }
     }, [isOpen, candidate, allCandidates, allJobs, allUsers, job]);
 

@@ -118,6 +118,7 @@ const BulkInterviewSchedulerModal: React.FC<BulkInterviewSchedulerModalProps> = 
     
     useEffect(() => {
         if (isOpen) {
+          try {
             setError('');
             const initialDate = new Date();
             setSelectedDate(initialDate);
@@ -151,6 +152,10 @@ const BulkInterviewSchedulerModal: React.FC<BulkInterviewSchedulerModalProps> = 
                 checkDate.setHours(checkDate.getHours() + 1);
             }
             setSuggestions({ slots: availableSlots });
+          } catch (e: any) {
+              console.error("--- Critical Error in BulkInterviewSchedulerModal useEffect ---", e);
+              setError(`Ocorreu um erro crítico. Detalhes: ${e.message}`);
+          }
         }
     }, [isOpen, allCandidates]);
 

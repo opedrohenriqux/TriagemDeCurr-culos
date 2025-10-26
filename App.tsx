@@ -95,6 +95,9 @@ function App() {
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // Avoid setting state if user is already set by handleLogin
+        if (currentUser && currentUser.id === firebaseUser.uid) return;
+
         let appUser = await userService.getById(firebaseUser.uid);
 
         if (!appUser) {
@@ -221,7 +224,14 @@ function App() {
 
   const handleLogin = async (email: string, password: string): Promise<boolean> => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      if (userCredential.user) {
+        // Force state update immediately on login to prevent race conditions
+        const appUser = await userService.getById(userCredential.user.uid);
+        if (appUser) {
+          setCurrentUser(appUser);
+        }
+      }
       return true;
     } catch (error) {
       console.error("Failed to sign in", error);

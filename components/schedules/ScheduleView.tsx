@@ -117,6 +117,11 @@ const CalendarView: React.FC<{
                 {weeks.map((week, weekIndex) => (
                     <React.Fragment key={weekIndex}>
                         {week.map(day => {
+                          try {
+                            if (!day || !(day instanceof Date) || isNaN(day.getTime())) {
+                                console.error("Invalid date object encountered in CalendarView:", day);
+                                return <div key={Math.random()} className="h-32 border border-red-500/50 bg-red-500/10" />;
+                            }
                             const dateKey = safeToISODate(day);
                             const interviews = interviewsByDate.get(dateKey) || [];
                             const isCurrentMonth = day.getMonth() === currentDate.getMonth();
@@ -144,9 +149,13 @@ const CalendarView: React.FC<{
                                     </div>
                                 </div>
                             );
+                          } catch (e: any) {
+                              console.error("--- Critical Error rendering CalendarView day cell ---", e);
+                              return <div key={Math.random()} className="h-32 border border-red-500/50 bg-red-500/10" title={e.message} />;
+                          }
                         })}
                         
-                        {selectedDateKey && week.some(day => safeToISODate(day) === selectedDateKey) && (
+                        {selectedDateKey && week.some(day => day && safeToISODate(day) === selectedDateKey) && (
                             <div className="col-span-7 p-4 bg-light-background dark:bg-background rounded-md my-1 animate-fade-in border border-light-primary/30 dark:border-primary/30">
                                 <div className="flex justify-between items-center">
                                     <h3 className="font-bold text-lg text-light-primary dark:text-primary">
@@ -282,7 +291,20 @@ const ListView: React.FC<{
 );
 
 const ScheduleView: React.FC<ScheduleViewProps> = (props) => {
-    const { candidates, jobs, users, onUpdateCandidate, onBulkCancelInterviews, onOpenMessaging, dynamics, onAddDynamic, onUpdateDynamic, onDeleteDynamic } = props;
+    // Ultra-defensive props validation
+    const {
+        candidates = [],
+        jobs = [],
+        users = [],
+        onUpdateCandidate,
+        onBulkCancelInterviews,
+        onOpenMessaging,
+        dynamics = [],
+        onAddDynamic,
+        onUpdateDynamic,
+        onDeleteDynamic
+    } = props;
+
     const [activeTab, setActiveTab] = useState<'agenda' | 'dinamica' | 'relatorios'>('agenda');
     const [view, setView] = useState<'calendar' | 'list'>('calendar');
     const [filterMode, setFilterMode] = useState<'upcoming' | 'past'>('upcoming');

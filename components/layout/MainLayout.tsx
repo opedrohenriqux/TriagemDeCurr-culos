@@ -15,6 +15,7 @@ import ReportsView from '../reports/ReportsView';
 import DevsView from '../devs/DevsView';
 import HiresView from '../hires/HiresView';
 import HistoryView from '../history/HistoryView';
+import ErrorBoundary from '../common/ErrorBoundary';
 
 
 export type View = 'vagas' | 'talentos' | 'assistencia' | 'dashboard' | 'relatorios' | 'entrevistas' | 'contratacoes' | 'arquivo' | 'admin' | 'devs' | 'historico';
@@ -231,7 +232,9 @@ const MainLayout: React.FC<MainLayoutProps> = (props) => {
         key={props.activeView} 
         className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in-up"
       >
-        {renderContent()}
+        <ErrorBoundary fallbackMessage="Ocorreu um erro ao carregar esta visualização.">
+          {renderContent()}
+        </ErrorBoundary>
       </main>
     </div>
   );

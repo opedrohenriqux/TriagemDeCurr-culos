@@ -116,10 +116,10 @@ const Header: React.FC<HeaderProps> = (props) => {
     { id: 'relatorios', label: 'Relatórios' },
     { id: 'entrevistas', label: 'Entrevistas' },
     { id: 'contratacoes', label: 'Contratações' },
+    { id: 'arquivo', label: 'Arquivo' },
   ];
   
   const adminMenuItems: { id: View, label: string }[] = [
-    { id: 'arquivo', label: 'Arquivo' },
     { id: 'admin', label: 'Painel Admin' },
   ];
 

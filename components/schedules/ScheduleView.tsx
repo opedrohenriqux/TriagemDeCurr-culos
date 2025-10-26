@@ -12,7 +12,7 @@ interface ScheduleViewProps {
     users: User[];
     onUpdateCandidate: (candidate: Candidate, oldStatus?: Candidate['status']) => void;
     onBulkCancelInterviews: (candidateIds: string[]) => void;
-    onOpenMessaging: (candidateId: number) => void;
+    onOpenMessaging: (candidateId: string) => void,
     dynamics: Dynamic[];
     onAddDynamic: (dynamic: Omit<Dynamic, 'id'>) => void;
     onUpdateDynamic: (dynamic: Dynamic) => void;
@@ -31,7 +31,7 @@ const CalendarView: React.FC<{
     onCancel: (id: string) => void,
     onEdit: (candidate: Candidate) => void,
     onOpenFeedback: (candidate: Candidate) => void,
-    onOpenMessaging: (candidateId: number) => void,
+    onOpenMessaging: (candidateId: string) => void,
     selectedDateKey: string | null,
     onDateSelect: (key: string | null) => void,
     jobMap: Map<string, string>,
@@ -143,12 +143,13 @@ const CalendarView: React.FC<{
                                 </div>
                                 <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
                                     {(interviewsByDate.get(selectedDateKey) || []).length > 0 ?
-                                        (interviewsByDate.get(selectedDateKey) || []).sort((a, b) => a.interview!.time.localeCompare(b.interview!.time)).map(interview => {
-                                            const isPast = new Date() > new Date(`${interview.interview!.date}T${interview.interview!.time}`);
+                                        (interviewsByDate.get(selectedDateKey) || []).sort((a, b) => (a.interview?.time || '').localeCompare(b.interview?.time || '')).map(interview => {
+                                            if (!interview.interview) return null;
+                                            const isPast = new Date() > new Date(`${interview.interview.date}T${interview.interview.time}`);
                                             return (
                                                 <div key={interview.id} className="bg-light-surface dark:bg-surface rounded-lg border border-light-border dark:border-border p-3 flex gap-4 items-start group transition-shadow hover:shadow-md">
                                                     <div className="flex-shrink-0 text-center bg-light-background dark:bg-background rounded-md p-2 w-20">
-                                                        <p className="text-xl font-bold text-light-primary dark:text-primary">{interview.interview?.time}</p>
+                                                        <p className="text-xl font-bold text-light-primary dark:text-primary">{interview.interview.time}</p>
                                                         <p className={`text-xs font-semibold ${isPast ? 'text-green-500' : 'text-blue-500'}`}>{isPast ? 'Realizada' : 'Agendada'}</p>
                                                     </div>
 
@@ -159,9 +160,9 @@ const CalendarView: React.FC<{
                                                         </div>
                                                         <p className="text-sm text-light-text-secondary dark:text-text-secondary truncate">{jobMap.get(interview.jobId)}</p>
                                                         <p className="text-xs text-light-text-secondary dark:text-text-secondary mt-1 truncate">
-                                                            com {interview.interview?.interviewers.join(', ')}
+                                                            com {interview.interview.interviewers.join(', ')}
                                                         </p>
-                                                        {interview.interview?.noShow && (
+                                                        {interview.interview.noShow && (
                                                             <span className="mt-2 inline-block bg-yellow-400/10 text-yellow-500 text-xs font-bold px-2 py-0.5 rounded-full border border-yellow-400/20">
                                                                 Não Compareceu
                                                             </span>
@@ -197,10 +198,10 @@ const CalendarView: React.FC<{
 const ListView: React.FC<{
     interviews: Candidate[],
     jobMap: Map<string, string>,
-    onCancel: (id: number) => void,
+    onCancel: (id: string) => void,
     onEdit: (candidate: Candidate) => void,
     onOpenFeedback: (candidate: Candidate) => void,
-    onOpenMessaging: (candidateId: number) => void,
+    onOpenMessaging: (candidateId: string) => void,
 }> = ({ interviews, jobMap, onCancel, onEdit, onOpenFeedback, onOpenMessaging }) => (
     <div className="bg-light-surface dark:bg-surface rounded-xl border border-light-border dark:border-border overflow-hidden">
         <div className="overflow-x-auto">
@@ -217,7 +218,8 @@ const ListView: React.FC<{
                 </thead>
                 <tbody>
                     {interviews.map(candidate => {
-                        const isPast = new Date() > new Date(`${candidate.interview!.date}T${candidate.interview!.time}`);
+                        if (!candidate.interview) return null;
+                        const isPast = new Date() > new Date(`${candidate.interview.date}T${candidate.interview.time}`);
                         return (
                         <tr key={candidate.id} className="bg-light-surface dark:bg-surface border-b dark:border-border hover:bg-light-background dark:hover:bg-background">
                             <th scope="row" className="flex items-center px-6 py-4 text-light-text-primary dark:text-text-primary whitespace-nowrap">
@@ -228,12 +230,12 @@ const ListView: React.FC<{
                             </th>
                             <td className="px-6 py-4">{jobMap.get(candidate.jobId) || 'N/A'}</td>
                             <td className="px-6 py-4">
-                                <div className="font-semibold">{new Date(candidate.interview!.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
-                                <div className="text-xs">{candidate.interview!.time}</div>
+                                <div className="font-semibold">{new Date(candidate.interview.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
+                                <div className="text-xs">{candidate.interview.time}</div>
                             </td>
-                            <td className="px-6 py-4">{candidate.interview!.interviewers.join(', ')}</td>
+                            <td className="px-6 py-4">{candidate.interview.interviewers.join(', ')}</td>
                              <td className="px-6 py-4">
-                                {candidate.interview!.noShow ? (
+                                {candidate.interview.noShow ? (
                                     <span className="bg-yellow-400/10 text-yellow-500 text-xs font-bold px-2.5 py-1 rounded-full border border-yellow-400/20">Não Compareceu</span>
                                 ) : isPast ? (
                                     <span className="bg-green-400/10 text-green-500 text-xs font-bold px-2.5 py-1 rounded-full border border-green-400/20">Realizada</span>
@@ -283,7 +285,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = (props) => {
     
     const recruiters = useMemo(() => users, [users]);
 
-    const handleCancelInterview = (candidateId: number) => {
+    const handleCancelInterview = (candidateId: string) => {
         const candidate = candidates.find(c => c.id === candidateId);
         if (candidate) {
             const updatedCandidate = { ...candidate };

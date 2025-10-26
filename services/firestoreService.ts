@@ -22,9 +22,30 @@ const createFirestoreService = <T>(collectionName: string) => {
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
     },
     listen: (callback: (data: T[]) => void): (() => void) => {
+      let currentData: T[] = [];
       return onSnapshot(collectionRef, snapshot => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
-        callback(data);
+        const changes = snapshot.docChanges();
+
+        changes.forEach(change => {
+          const docData = { id: change.doc.id, ...change.doc.data() } as T;
+          switch (change.type) {
+            case 'added':
+              // Adiciona apenas se não existir para evitar duplicatas no primeiro carregamento
+              if (!currentData.some(item => (item as any).id === docData.id)) {
+                  currentData.push(docData);
+              }
+              break;
+            case 'modified':
+              currentData = currentData.map(item => ((item as any).id === docData.id ? docData : item));
+              break;
+            case 'removed':
+              currentData = currentData.filter(item => (item as any).id !== docData.id);
+              break;
+          }
+        });
+
+        // Envia uma cópia do array para garantir a reatividade do React, mas de forma estável.
+        callback([...currentData]);
       });
     },
     create: async (data: Omit<T, 'id'>): Promise<T> => {

@@ -4,28 +4,28 @@ import InitialsAvatar from '../common/InitialsAvatar';
 import { getSuggestedReplies } from '../../services/geminiService';
 import Pagination from '../common/Pagination';
 
+// Modal para iniciar nova conversa (copiado do antigo, pois era funcional)
 interface NewConversationModalProps {
     type: 'candidates' | 'team';
     candidates: Candidate[];
     users: User[];
     currentUser: { id: string };
-    conversations: { partner: { id: string } }[];
+    conversations: { partnerId: string }[];
     onClose: () => void;
     onSelect: (partnerId: string) => void;
 }
 
 const NewConversationModal: React.FC<NewConversationModalProps> = ({ type, candidates, users, currentUser, conversations, onClose, onSelect }) => {
     const [searchTerm, setSearchTerm] = useState('');
-
     const listData = useMemo(() => {
-        const existingPartnerIds = new Set(conversations.map(c => c.partner.id));
+        const existingPartnerIds = new Set(conversations.map(c => c.partnerId));
         if (type === 'candidates') {
             return candidates
                 .filter(c => ['screening', 'approved', 'offer', 'waitlist', 'hired'].includes(c.status))
                 .filter(c => !existingPartnerIds.has(`candidate-${c.id}`))
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(c => ({ id: `candidate-${c.id}`, name: c.name }));
-        } else { // team
+        } else {
             const currentUserId = currentUser.id.split('-')[1];
             return users
                 .filter(u => u.id !== currentUserId)
@@ -37,7 +37,7 @@ const NewConversationModal: React.FC<NewConversationModalProps> = ({ type, candi
 
     const filteredList = useMemo(() => {
         if (!searchTerm) return listData;
-        return listData.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        return listData.filter(item => item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [listData, searchTerm]);
 
     return (
@@ -58,18 +58,17 @@ const NewConversationModal: React.FC<NewConversationModalProps> = ({ type, candi
             <div className="flex-1 overflow-y-auto">
                 {filteredList.map(item => (
                     <div key={item.id} onClick={() => onSelect(item.id)} className="flex items-center gap-3 p-4 cursor-pointer hover:bg-light-background/50 dark:hover:bg-background/50">
-                        <div className="w-10 h-10 flex-shrink-0"><InitialsAvatar name={item.name} /></div>
+                        <div className="w-10 h-10 flex-shrink-0"><InitialsAvatar name={item.name || '?'} /></div>
                         <p className="font-semibold">{item.name}</p>
                     </div>
                 ))}
-                {filteredList.length === 0 && (
-                    <p className="text-center text-sm text-light-text-secondary dark:text-text-secondary p-4">Nenhum contato elegível encontrado.</p>
-                )}
             </div>
         </div>
     );
 };
 
+
+// Props do componente principal
 interface MessagingPanelProps {
     currentUser: { id: string; name: string; type: 'user' | 'candidate' };
     messages: Message[];
@@ -87,162 +86,172 @@ interface MessagingPanelProps {
     preselectedId: string | null;
 }
 
+// Definição do tipo para um objeto de conversa estável
+type StableConversation = {
+    partnerId: string;
+    partnerName: string;
+    partnerAvatar?: string;
+    partnerCandidate?: Candidate;
+    lastMessage: Message | null;
+    unreadCount: number;
+    isLoading: boolean;
+};
+
+
 const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
     const { currentUser, messages, users, candidates, jobs, archivedConversations, onClose, onSendMessage, onUpdateMessage, onMarkAsRead, onDeleteConversation, onArchiveConversation, onUnarchiveConversation, preselectedId } = props;
-    
+
+    // Estado da UI
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
     const [isNewConvoModalOpen, setIsNewConvoModalOpen] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement | null>(null);
-    const [suggestedReplies, setSuggestedReplies] = useState<string[]>([]);
-    const [isGeneratingReplies, setIsGeneratingReplies] = useState(false);
-    
-    // UI State
     const [activeTab, setActiveTab] = useState<'candidates' | 'team'>('candidates');
     const [viewArchived, setViewArchived] = useState(false);
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, message: Message } | null>(null);
     const [editingMessage, setEditingMessage] = useState<Message | null>(null);
     const [editText, setEditText] = useState('');
     const [deletedForMe, setDeletedForMe] = useState<Set<number>>(new Set());
-    const contextMenuRef = useRef<HTMLDivElement>(null);
 
-    // Pagination State
-    const [currentPage, setCurrentPage] = useState(1);
-    const CONVERSATIONS_PER_PAGE = 10;
-
-
-    // Filters State
+    // Estado dos Filtros
     const [searchTerm, setSearchTerm] = useState('');
     const [jobFilter, setJobFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
-    const statusTranslationMap: Record<CandidateStatus, string> = {
-        applied: 'Inscrito',
-        screening: 'Triagem',
-        approved: 'Aprovado',
-        offer: 'Oferta',
-        waitlist: 'Lista de Espera',
-        hired: 'Contratado',
-        rejected: 'Rejeitado',
-        pending: 'Pendente',
-    };
+    // Estado da IA
+    const [suggestedReplies, setSuggestedReplies] = useState<string[]>([]);
+    const [isGeneratingReplies, setIsGeneratingReplies] = useState(false);
 
-    const userMap = useMemo(() => {
-        const map = new Map<string, { name: string; avatar?: string }>();
-        users.forEach(u => map.set(`user-${u.id}`, { name: u.username }));
-        candidates.forEach(c => map.set(`candidate-${c.id}`, { name: c.name, avatar: c.avatarUrl }));
+    // Refs
+    const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const contextMenuRef = useRef<HTMLDivElement>(null);
+
+    // Paginação
+    const [currentPage, setCurrentPage] = useState(1);
+    const CONVERSATIONS_PER_PAGE = 10;
+
+    const statusTranslationMap: Record<CandidateStatus, string> = { applied: 'Inscrito', screening: 'Triagem', approved: 'Aprovado', offer: 'Oferta', waitlist: 'Lista de Espera', hired: 'Contratado', rejected: 'Rejeitado', pending: 'Pendente' };
+    const candidateStatuses: CandidateStatus[] = ['applied', 'screening', 'approved', 'offer', 'waitlist', 'hired', 'rejected'];
+
+    // ===================================================================================
+    // ============================ LÓGICA ESTÁVEL REESCRITA ============================
+    // ===================================================================================
+
+    // 1. Cria um mapa estável de todos os usuários e candidatos para consulta rápida.
+    const partnerMap = useMemo(() => {
+        const map = new Map<string, { name: string; avatar?: string; candidate?: Candidate }>();
+        users.forEach(u => map.set(`user-${u.id}`, { name: u.username || 'Usuário', candidate: undefined }));
+        candidates.forEach(c => map.set(`candidate-${c.id}`, { name: c.name, avatar: c.avatarUrl, candidate: c }));
         return map;
     }, [users, candidates]);
 
-    const allConversations = useMemo(() => {
-        const conversations: { [key: string]: { partner: { id: string, name: string }, messages: Message[] } } = {};
+    // 2. Agrega todas as conversas de forma estável.
+    const allConversations = useMemo<StableConversation[]>(() => {
+        const convos: { [partnerId: string]: StableConversation } = {};
 
-        messages.forEach(msg => {
+        // Itera sobre as mensagens para identificar todas as conversas existentes.
+        for (const msg of messages) {
             const partnerId = msg.senderId === currentUser.id ? msg.receiverId : msg.senderId;
-
-            if (!conversations[partnerId]) {
-                const partnerInfo = userMap.get(partnerId);
-                // FIX: Handle race condition where user/candidate data might arrive after messages.
-                // Instead of skipping the conversation, create it with a placeholder name.
-                conversations[partnerId] = {
-                    partner: { id: partnerId, name: partnerInfo?.name || 'Carregando...' },
-                    messages: []
+            if (!convos[partnerId]) {
+                const partnerInfo = partnerMap.get(partnerId);
+                convos[partnerId] = {
+                    partnerId: partnerId,
+                    partnerName: partnerInfo?.name || 'Carregando...',
+                    partnerAvatar: partnerInfo?.avatar,
+                    partnerCandidate: partnerInfo?.candidate,
+                    lastMessage: null,
+                    unreadCount: 0,
+                    isLoading: !partnerInfo, // Se não encontramos info, está carregando.
                 };
             }
-            conversations[partnerId].messages.push(msg);
-        });
-
-        return Object.values(conversations).map(convo => {
-            const lastMessage = [...convo.messages].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-            const unreadCount = convo.messages.filter(m => m.receiverId === currentUser.id && !m.isRead).length;
-
-            return {
-                partner: convo.partner,
-                lastMessage: lastMessage,
-                unreadCount: unreadCount
-            };
-        });
-    }, [messages, currentUser.id, userMap]);
-
-    const displayedConversations = useMemo(() => {
-        // 1. Filter by archive status and tab type first
-        let initialList = allConversations.filter(convo => {
-            const isArchived = archivedConversations.has(convo.partner.id);
-            const matchesArchive = viewArchived ? isArchived : !isArchived;
-
-            const isCandidate = convo.partner.id.startsWith('candidate-');
-            const matchesTab = (activeTab === 'candidates' && isCandidate) || (activeTab === 'team' && !isCandidate);
-
-            return matchesArchive && matchesTab;
-        });
-
-        // 2. Apply tab-specific searches and filters
-        let filteredList;
-        if (activeTab === 'candidates') {
-            filteredList = initialList
-                .map(convo => {
-                    const candidate = candidates.find(c => `candidate-${c.id}` === convo.partner.id);
-                    return { ...convo, candidate };
-                })
-                .filter(convo => {
-                    const nameMatch = convo.partner.name.toLowerCase().includes(searchTerm.toLowerCase());
-                    // If candidate data is not yet loaded, don't filter it out.
-                    // Only apply job/status filters once the candidate data is available.
-                    if (!convo.candidate) {
-                        // Still apply name search to "Carregando..." if needed, but mostly let it pass.
-                        return nameMatch;
-                    }
-                    const jobMatch = jobFilter === 'all' || convo.candidate.jobId === jobFilter;
-                    const statusMatch = statusFilter === 'all' || convo.candidate.status === statusFilter;
-                    return nameMatch && jobMatch && statusMatch;
-                });
-        } else { // activeTab === 'team'
-            filteredList = initialList.filter(convo =>
-                convo.partner.name.toLowerCase().includes(searchTerm.toLowerCase())
-            );
         }
-        
-        // 3. Sort the final list
+
+        const convoList = Object.values(convos);
+
+        // Preenche os detalhes (última mensagem, contagem de não lidas) para cada conversa.
+        for (const convo of convoList) {
+            const partnerMessages = messages.filter(m =>
+                (m.senderId === convo.partnerId && m.receiverId === currentUser.id) ||
+                (m.receiverId === convo.partnerId && m.senderId === currentUser.id)
+            );
+
+            if (partnerMessages.length > 0) {
+                partnerMessages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+                convo.lastMessage = partnerMessages[0];
+                convo.unreadCount = partnerMessages.filter(m => m.receiverId === currentUser.id && !m.isRead).length;
+            }
+        }
+
+        return convoList;
+    }, [messages, currentUser.id, partnerMap]);
+
+    // 3. Filtra e ordena as conversas para exibição, de forma defensiva.
+    const displayedConversations = useMemo(() => {
+        const filteredList = allConversations.filter(convo => {
+            const isArchived = archivedConversations.has(convo.partnerId);
+            if (viewArchived !== isArchived) return false;
+
+            const isCandidate = convo.partnerId.startsWith('candidate-');
+            if (activeTab === 'candidates' && !isCandidate) return false;
+            if (activeTab === 'team' && isCandidate) return false;
+
+            const searchTermLower = searchTerm.toLowerCase();
+            if (searchTermLower && !convo.partnerName.toLowerCase().includes(searchTermLower)) {
+                return false;
+            }
+
+            // Aplica filtros específicos para candidatos, mas APENAS se os dados não estiverem carregando.
+            if (activeTab === 'candidates' && !convo.isLoading) {
+                if (!convo.partnerCandidate) return false; // Se não houver candidato após o carregamento, filtre.
+                if (jobFilter !== 'all' && convo.partnerCandidate.jobId !== jobFilter) return false;
+                if (statusFilter !== 'all' && convo.partnerCandidate.status !== statusFilter) return false;
+            }
+
+            return true;
+        });
+
         return filteredList.sort((a, b) => {
-            if (!a.lastMessage || !b.lastMessage) return 0;
-            const timeA = new Date(a.lastMessage.timestamp).getTime();
-            const timeB = new Date(b.lastMessage.timestamp).getTime();
+            const timeA = a.lastMessage ? new Date(a.lastMessage.timestamp).getTime() : 0;
+            const timeB = b.lastMessage ? new Date(b.lastMessage.timestamp).getTime() : 0;
             return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
         });
-    }, [allConversations, archivedConversations, viewArchived, activeTab, searchTerm, jobFilter, statusFilter, sortOrder, candidates]);
+    }, [allConversations, archivedConversations, viewArchived, activeTab, searchTerm, jobFilter, statusFilter, sortOrder]);
 
-    const totalPages = useMemo(() => {
-        return Math.ceil(displayedConversations.length / CONVERSATIONS_PER_PAGE);
-    }, [displayedConversations]);
 
+    const totalPages = Math.ceil(displayedConversations.length / CONVERSATIONS_PER_PAGE);
     const paginatedConversations = useMemo(() => {
         const startIndex = (currentPage - 1) * CONVERSATIONS_PER_PAGE;
         return displayedConversations.slice(startIndex, startIndex + CONVERSATIONS_PER_PAGE);
     }, [displayedConversations, currentPage]);
 
-
     const activeConversationMessages = useMemo(() => {
         if (!selectedConversationId) return [];
-        return messages.filter(msg =>
-            ((msg.senderId === currentUser.id && msg.receiverId === selectedConversationId) ||
-            (msg.senderId === selectedConversationId && msg.receiverId === currentUser.id)) &&
-            !deletedForMe.has(msg.id)
-        ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        return messages
+            .filter(msg =>
+                ((msg.senderId === currentUser.id && msg.receiverId === selectedConversationId) || (msg.senderId === selectedConversationId && msg.receiverId === currentUser.id))
+                && !deletedForMe.has(msg.id)
+            )
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     }, [messages, currentUser.id, selectedConversationId, deletedForMe]);
     
+    const partnerName = selectedConversationId ? partnerMap.get(selectedConversationId)?.name : '';
+    const isRecruiterView = currentUser.type === 'user';
+
+    // ===================================================================================
+    // ================================= Efeitos e Handlers =================================
+    // ===================================================================================
+
     useEffect(() => {
         if (preselectedId) {
             setSelectedConversationId(preselectedId);
             onMarkAsRead(preselectedId);
-            if (preselectedId.startsWith('user-')) setActiveTab('team');
-            else setActiveTab('candidates');
+            setActiveTab(preselectedId.startsWith('user-') ? 'team' : 'candidates');
         } else if (currentUser.type === 'candidate' && allConversations.length > 0) {
-            const partnerId = allConversations[0].partner.id;
+            const partnerId = allConversations[0].partnerId;
             setSelectedConversationId(partnerId);
             onMarkAsRead(partnerId);
         }
-    }, [preselectedId, currentUser.type, allConversations, onMarkAsRead]);
+    }, [preselectedId, currentUser.type]);
     
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -251,15 +260,10 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [activeTab, viewArchived, searchTerm, jobFilter, statusFilter, sortOrder]);
-
+    useEffect(() => { setCurrentPage(1); }, [activeTab, viewArchived, searchTerm, jobFilter, statusFilter, sortOrder]);
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [activeConversationMessages]);
 
     const handleSelectConversation = (partnerId: string) => {
@@ -280,11 +284,8 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
     const handleGenerateReplies = async () => {
         if (!selectedConversationId) return;
         setIsGeneratingReplies(true);
-        setSuggestedReplies([]);
-        
         const candidate = candidates.find(c => `candidate-${c.id}` === selectedConversationId);
         const recruiterUser = users.find(u => `user-${u.id}` === currentUser.id);
-
         if (candidate && recruiterUser) {
             const job = jobs.find(j => j.id === candidate.jobId);
             if(job) {
@@ -299,53 +300,27 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
         e.stopPropagation();
         if (action === 'archive') onArchiveConversation(partnerId);
         if (action === 'unarchive') onUnarchiveConversation(partnerId);
-        if (action === 'delete') {
-            if (window.confirm("Tem certeza que deseja excluir esta conversa? Esta ação não pode ser desfeita.")) {
-                onDeleteConversation(partnerId);
-                if (selectedConversationId === partnerId) setSelectedConversationId(null);
-            }
+        if (action === 'delete' && window.confirm("Tem certeza que deseja excluir esta conversa?")) {
+            onDeleteConversation(partnerId);
+            if (selectedConversationId === partnerId) setSelectedConversationId(null);
         }
     };
     
+    // Handlers do menu de contexto (editar, apagar) permanecem os mesmos
     const handleContextMenu = (e: React.MouseEvent, message: Message) => {
         if (currentUser.type !== 'user' || message.senderId !== currentUser.id || message.isDeleted) return;
         e.preventDefault();
         setContextMenu({ x: e.pageX, y: e.pageY, message });
     };
+    const handleEditClick = () => { if (contextMenu) { setEditingMessage(contextMenu.message); setEditText(contextMenu.message.text); setContextMenu(null); } };
+    const handleSaveEdit = () => { if (editingMessage && editText.trim()) { onUpdateMessage(editingMessage.id, editText.trim()); } setEditingMessage(null); setEditText(''); };
+    const handleDeleteForEveryoneClick = () => { if (contextMenu) { onUpdateMessage(contextMenu.message.id, "Mensagem apagada", true); setContextMenu(null); } };
+    const handleDeleteForMeClick = () => { if (contextMenu) { setDeletedForMe(prev => new Set(prev).add(contextMenu.message.id)); setContextMenu(null); } };
 
-    const handleEditClick = () => {
-        if (contextMenu) {
-            setEditingMessage(contextMenu.message);
-            setEditText(contextMenu.message.text);
-            setContextMenu(null);
-        }
-    };
 
-    const handleSaveEdit = () => {
-        if (editingMessage && editText.trim()) {
-            onUpdateMessage(editingMessage.id, editText.trim());
-        }
-        setEditingMessage(null);
-        setEditText('');
-    };
-    
-    const handleDeleteForEveryoneClick = () => {
-        if (contextMenu) {
-            onUpdateMessage(contextMenu.message.id, "Mensagem apagada", true);
-            setContextMenu(null);
-        }
-    };
-    
-    const handleDeleteForMeClick = () => {
-        if (contextMenu) {
-            setDeletedForMe(prev => new Set(prev).add(contextMenu.message.id));
-            setContextMenu(null);
-        }
-    };
-
-    const partnerName = selectedConversationId ? userMap.get(selectedConversationId)?.name : '';
-    const isRecruiterView = currentUser.type === 'user';
-    const candidateStatuses: CandidateStatus[] = ['applied', 'screening', 'approved', 'offer', 'waitlist', 'hired', 'rejected'];
+    // ===================================================================================
+    // ======================================= UI ========================================
+    // ===================================================================================
 
     return (
         <>
@@ -363,7 +338,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
                                 <button onClick={() => setActiveTab('candidates')} className={`flex-1 p-3 text-sm font-semibold border-b-2 ${activeTab === 'candidates' ? 'border-light-primary dark:border-primary text-light-primary dark:text-primary' : 'border-transparent text-light-text-secondary dark:text-text-secondary'}`}>Candidatos</button>
                                 <button onClick={() => setActiveTab('team')} className={`flex-1 p-3 text-sm font-semibold border-b-2 ${activeTab === 'team' ? 'border-light-primary dark:border-primary text-light-primary dark:text-primary' : 'border-transparent text-light-text-secondary dark:text-text-secondary'}`}>Equipe</button>
                             </div>
-                            {activeTab === 'candidates' && (
+                             {activeTab === 'candidates' && (
                                 <div className="p-3 border-b border-light-border dark:border-border space-y-2 text-sm">
                                     <input type="text" placeholder="Buscar por nome..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full px-3 py-2 bg-light-background dark:bg-background border border-light-border dark:border-border rounded-md focus:outline-none focus:ring-2 focus:ring-light-primary dark:focus:ring-primary"/>
                                     <div className="grid grid-cols-2 gap-2">
@@ -378,37 +353,23 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
                             )}
                             <div className="flex-1 overflow-y-auto">
                                 {paginatedConversations.map(convo => (
-                                    <div key={convo.partner.id} onClick={() => handleSelectConversation(convo.partner.id)} className={`flex items-start gap-3 p-3 cursor-pointer border-l-4 group ${selectedConversationId === convo.partner.id ? 'bg-light-background dark:bg-background border-light-primary dark:border-primary' : 'hover:bg-light-background/50 dark:hover:bg-background/50 border-transparent'}`}>
-                                        <div className="w-12 h-12 flex-shrink-0"><InitialsAvatar name={convo.partner.name} /></div>
+                                    <div key={convo.partnerId} onClick={() => handleSelectConversation(convo.partnerId)} className={`flex items-start gap-3 p-3 cursor-pointer border-l-4 group ${selectedConversationId === convo.partnerId ? 'bg-light-background dark:bg-background border-light-primary dark:border-primary' : 'hover:bg-light-background/50 dark:hover:bg-background/50 border-transparent'}`}>
+                                        <div className="w-12 h-12 flex-shrink-0"><InitialsAvatar name={convo.partnerName} /></div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-center"><p className="font-semibold truncate">{convo.partner.name}</p>{convo.unreadCount > 0 && <span className="bg-light-primary dark:bg-primary text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{convo.unreadCount}</span>}</div>
-                                            <p className="text-sm text-light-text-secondary dark:text-text-secondary truncate">{convo.lastMessage?.text}</p>
+                                            <div className="flex justify-between items-center"><p className="font-semibold truncate">{convo.partnerName}</p>{convo.unreadCount > 0 && <span className="bg-light-primary dark:bg-primary text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{convo.unreadCount}</span>}</div>
+                                            <p className="text-sm text-light-text-secondary dark:text-text-secondary truncate">{convo.lastMessage?.text || '...'}</p>
                                         </div>
                                         <div className="flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={(e) => handleAction(e, viewArchived ? 'unarchive' : 'archive', convo.partner.id)} className="p-1.5 rounded-full text-light-text-secondary dark:text-text-secondary hover:bg-yellow-500/10 hover:text-yellow-500" title={viewArchived ? 'Desarquivar' : 'Arquivar'}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>
-                                            <button onClick={(e) => handleAction(e, 'delete', convo.partner.id)} className="p-1.5 rounded-full text-light-text-secondary dark:text-text-secondary hover:bg-red-500/10 hover:text-red-500" title="Excluir"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                                            <button onClick={(e) => handleAction(e, viewArchived ? 'unarchive' : 'archive', convo.partnerId)} className="p-1.5 rounded-full text-light-text-secondary dark:text-text-secondary hover:bg-yellow-500/10 hover:text-yellow-500" title={viewArchived ? 'Desarquivar' : 'Arquivar'}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>
+                                            <button onClick={(e) => handleAction(e, 'delete', convo.partnerId)} className="p-1.5 rounded-full text-light-text-secondary dark:text-text-secondary hover:bg-red-500/10 hover:text-red-500" title="Excluir"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                                         </div>
                                     </div>
                                 ))}
-                                {displayedConversations.length === 0 && (
-                                    <p className="p-4 text-center text-sm text-light-text-secondary dark:text-text-secondary">
-                                        Nenhuma conversa encontrada.
-                                    </p>
-                                )}
+                                {displayedConversations.length === 0 && <p className="p-4 text-center text-sm text-light-text-secondary dark:text-text-secondary">Nenhuma conversa encontrada.</p>}
                             </div>
-                             {totalPages > 1 && (
-                                <div className="p-2 border-t border-light-border dark:border-border">
-                                    <Pagination
-                                        currentPage={currentPage}
-                                        totalPages={totalPages}
-                                        onPageChange={setCurrentPage}
-                                    />
-                                </div>
-                            )}
+                             {totalPages > 1 && <div className="p-2 border-t border-light-border dark:border-border"><Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage}/></div>}
                             <div className="p-2 border-t border-light-border dark:border-border text-center">
-                                <button onClick={() => setViewArchived(!viewArchived)} className="text-sm font-semibold text-light-secondary dark:text-secondary hover:underline">
-                                    {viewArchived ? 'Voltar para Ativas' : 'Ver Arquivadas'}
-                                </button>
+                                <button onClick={() => setViewArchived(!viewArchived)} className="text-sm font-semibold text-light-secondary dark:text-secondary hover:underline">{viewArchived ? 'Voltar para Ativas' : 'Ver Arquivadas'}</button>
                             </div>
                         </div>
                     )}
@@ -424,17 +385,11 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
                                 <div className="flex-1 p-4 space-y-4 overflow-y-auto bg-light-background/50 dark:bg-background/50">
                                     {activeConversationMessages.map(msg => (
                                         <div key={msg.id} className={`flex items-end gap-2 ${msg.senderId === currentUser.id ? 'justify-end' : ''}`}>
-                                            {msg.senderId !== currentUser.id && <div className="w-8 h-8 flex-shrink-0"><InitialsAvatar name={userMap.get(msg.senderId)?.name || '?'} /></div>}
+                                            {msg.senderId !== currentUser.id && <div className="w-8 h-8 flex-shrink-0"><InitialsAvatar name={partnerMap.get(msg.senderId)?.name || '?'} /></div>}
                                             <div onContextMenu={(e) => handleContextMenu(e, msg)} className={`max-w-md p-3 rounded-2xl text-sm ${msg.senderId === currentUser.id ? 'bg-light-primary dark:bg-primary text-white rounded-br-none' : 'bg-light-surface dark:bg-surface rounded-bl-none border border-light-border dark:border-border'}`}>
                                                 {editingMessage?.id === msg.id ? (
                                                      <div className="w-full">
-                                                        <textarea
-                                                            value={editText}
-                                                            onChange={(e) => setEditText(e.target.value)}
-                                                            className="w-full p-2 text-sm bg-light-surface dark:bg-surface text-light-text-primary dark:text-text-primary rounded-md border border-light-primary dark:border-primary focus:outline-none"
-                                                            rows={3}
-                                                            autoFocus
-                                                        />
+                                                        <textarea value={editText} onChange={(e) => setEditText(e.target.value)} className="w-full p-2 text-sm bg-light-surface dark:bg-surface text-light-text-primary dark:text-text-primary rounded-md border border-light-primary dark:border-primary focus:outline-none" rows={3} autoFocus/>
                                                         <div className="flex justify-end gap-2 mt-1">
                                                             <button onClick={() => setEditingMessage(null)} className="text-xs font-semibold px-2 py-1 rounded text-light-text-secondary dark:text-text-secondary">Cancelar</button>
                                                             <button onClick={handleSaveEdit} className="text-xs font-semibold px-3 py-1 rounded bg-light-secondary dark:bg-secondary text-white">Salvar</button>
@@ -442,11 +397,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        {msg.isDeleted ? (
-                                                            <p className="italic text-light-text-secondary/80 dark:text-text-secondary/80">Mensagem apagada</p>
-                                                        ) : (
-                                                            <p>{msg.text}</p>
-                                                        )}
+                                                        {msg.isDeleted ? <p className="italic text-light-text-secondary/80 dark:text-text-secondary/80">Mensagem apagada</p> : <p>{msg.text}</p>}
                                                         <p className={`text-xs mt-1 ${msg.senderId === currentUser.id ? 'text-white/70' : 'text-light-text-secondary/70 dark:text-text-secondary/70'}`}>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                                     </>
                                                 )}
@@ -479,22 +430,15 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
                             candidates={candidates}
                             users={users}
                             currentUser={currentUser}
-                            conversations={allConversations}
+                            conversations={allConversations.map(c => ({ partnerId: c.partnerId }))}
                             onClose={() => setIsNewConvoModalOpen(false)}
-                            onSelect={(partnerId) => {
-                                handleSelectConversation(partnerId);
-                                setIsNewConvoModalOpen(false);
-                            }}
+                            onSelect={(partnerId) => { handleSelectConversation(partnerId); setIsNewConvoModalOpen(false); }}
                         />
                     )}
                 </div>
             </div>
             {contextMenu && (
-                <div
-                    ref={contextMenuRef}
-                    style={{ top: contextMenu.y, left: contextMenu.x }}
-                    className="absolute z-50 bg-light-surface dark:bg-surface border border-light-border dark:border-border rounded-md shadow-lg py-1 w-48 animate-fade-in"
-                >
+                <div ref={contextMenuRef} style={{ top: contextMenu.y, left: contextMenu.x }} className="absolute z-50 bg-light-surface dark:bg-surface border border-light-border dark:border-border rounded-md shadow-lg py-1 w-48 animate-fade-in">
                     <button onClick={handleEditClick} className="w-full text-left px-4 py-2 text-sm hover:bg-light-background dark:hover:bg-background">Editar</button>
                     <button onClick={handleDeleteForEveryoneClick} className="w-full text-left px-4 py-2 text-sm hover:bg-light-background dark:hover:bg-background">Apagar para todos</button>
                     <button onClick={handleDeleteForMeClick} className="w-full text-left px-4 py-2 text-sm hover:bg-light-background dark:hover:bg-background">Apagar para mim</button>

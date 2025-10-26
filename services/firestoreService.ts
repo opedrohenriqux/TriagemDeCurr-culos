@@ -26,17 +26,25 @@ const createFirestoreService = <T>(collectionName: string) => {
       return onSnapshot(collectionRef, snapshot => {
         const changes = snapshot.docChanges();
 
+        // **THE FIX**: If there are no actual document changes, do nothing.
+        // This prevents re-renders from metadata-only snapshots from Firebase.
+        if (changes.length === 0) {
+            return;
+        }
+
         changes.forEach(change => {
           const docData = { id: change.doc.id, ...change.doc.data() } as T;
           switch (change.type) {
             case 'added':
-              // Adiciona apenas se não existir para evitar duplicatas no primeiro carregamento
               if (!currentData.some(item => (item as any).id === docData.id)) {
                   currentData.push(docData);
               }
               break;
             case 'modified':
-              currentData = currentData.map(item => ((item as any).id === docData.id ? docData : item));
+              const index = currentData.findIndex(item => (item as any).id === docData.id);
+              if (index > -1) {
+                  currentData[index] = docData;
+              }
               break;
             case 'removed':
               currentData = currentData.filter(item => (item as any).id !== docData.id);
@@ -44,7 +52,6 @@ const createFirestoreService = <T>(collectionName: string) => {
           }
         });
 
-        // Envia uma cópia do array para garantir a reatividade do React, mas de forma estável.
         callback([...currentData]);
       });
     },

@@ -140,7 +140,12 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
     // 1. Cria um mapa estável de todos os usuários e candidatos para consulta rápida.
     const partnerMap = useMemo(() => {
         const map = new Map<string, { name: string; avatar?: string; candidate?: Candidate }>();
-        users.forEach(u => map.set(`user-${u.id}`, { name: u.username || 'Usuário', candidate: undefined }));
+        // Para usuários (equipe), mostra apenas o primeiro nome.
+        users.forEach(u => {
+            const firstName = (u.username || 'Usuário').split(' ')[0];
+            map.set(`user-${u.id}`, { name: firstName, candidate: undefined });
+        });
+        // Para candidatos, mostra o nome completo.
         candidates.forEach(c => map.set(`candidate-${c.id}`, { name: c.name, avatar: c.avatarUrl, candidate: c }));
         return map;
     }, [users, candidates]);

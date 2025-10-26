@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { Job, Candidate, Talent } from '../../types';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -113,14 +113,21 @@ const ReportsView: React.FC<{ jobs: Job[]; candidates: Candidate[], talentPool: 
     
     const COLORS = ['#2DD4BF', '#4F46E5', '#FBBF24', '#F87171', '#A78BFA', '#EC4899'];
 
-    const turnoverData = useMemo(() => [
-        { month: 'Jan', 'Taxa de Turnover (%)': 4.5 },
-        { month: 'Fev', 'Taxa de Turnover (%)': 3.8 },
-        { month: 'Mar', 'Taxa de Turnover (%)': 5.1 },
-        { month: 'Abr', 'Taxa de Turnover (%)': 4.2 },
-        { month: 'Mai', 'Taxa de Turnover (%)': 3.9 },
-        { month: 'Jun', 'Taxa de Turnover (%)': 4.0 },
-    ], []);
+    const hiresByJobData = useMemo(() => {
+        const hiresCounts: { [key: string]: number } = {};
+        filteredCandidates.forEach(c => {
+            if (c.status === 'hired') {
+                const job = jobs.find(j => j.id === c.jobId);
+                if (job) {
+                    hiresCounts[job.title] = (hiresCounts[job.title] || 0) + 1;
+                }
+            }
+        });
+        return Object.entries(hiresCounts)
+            .map(([name, count]) => ({ name, 'Contratados': count }))
+            .filter(item => item.Contratados > 0)
+            .sort((a, b) => b.Contratados - a.Contratados);
+    }, [filteredCandidates, jobs]);
 
     const absenteeismData = useMemo(() => {
         const data: { [key: string]: { month: string, 'Faltas em Entrevistas': number } } = {};
@@ -251,16 +258,15 @@ const ReportsView: React.FC<{ jobs: Job[]; candidates: Candidate[], talentPool: 
                         <Legend wrapperStyle={{ color: 'var(--color-text-primary)' }}/>
                     </PieChart>
                 </ChartWrapper>
-                
-                <ChartWrapper title="Evolução do Turnover">
-                    <LineChart data={turnoverData}>
+
+                <ChartWrapper title="Contratações por Vaga">
+                    <BarChart data={hiresByJobData} layout="vertical" margin={{ left: 20, right: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                        <XAxis dataKey="month" stroke="var(--color-text-secondary)" tick={{ fill: 'currentColor', fontSize: 12 }}/>
-                        <YAxis stroke="var(--color-text-secondary)" tick={{ fill: 'currentColor' }} unit="%"/>
-                        <Tooltip content={<CustomTooltip />} cursor={{stroke: 'var(--color-primary)', strokeWidth: 1}}/>
-                        <Legend wrapperStyle={{ color: 'var(--color-text-primary)' }}/>
-                        <Line type="monotone" dataKey="Taxa de Turnover (%)" stroke="#EC4899" strokeWidth={2} dot={{r: 4}} activeDot={{r: 6}}/>
-                    </LineChart>
+                        <XAxis type="number" stroke="var(--color-text-secondary)" tick={{ fill: 'currentColor' }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="name" stroke="var(--color-text-secondary)" width={120} tick={{ fill: 'currentColor', fontSize: 12 }} />
+                        <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(79, 70, 229, 0.1)'}} />
+                        <Bar dataKey="Contratados" fill="#818CF8" />
+                    </BarChart>
                 </ChartWrapper>
 
                 <ChartWrapper title="Monitoramento de Absenteísmo em Entrevistas">

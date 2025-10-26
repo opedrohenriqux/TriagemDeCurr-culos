@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Dynamic, Candidate, ActiveDynamicTimer } from '../../types';
 import InitialsAvatar from '../common/InitialsAvatar';
+import { speak } from '../../services/speechService';
 
 interface DynamicViewerModalProps {
     isOpen: boolean;
@@ -30,8 +31,9 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
     const [timerMode, setTimerMode] = useState<'countdown' | 'countup'>('countdown');
     const [displayTime, setDisplayTime] = useState(initialMinutes * 60);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [announcedMilestones, setAnnouncedMilestones] = useState<Set<string>>(new Set());
 
-    const audioCtxRef = useRef<AudioContext | null>(null);
+
     const intervalRef = useRef<number | null>(null);
     const modalRef = useRef<HTMLDivElement>(null);
 
@@ -47,25 +49,6 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
             document.exitFullscreen();
         }
     };
-
-    // Function to play a sound
-    const playBeep = (frequency = 440, duration = 100) => {
-        if (!audioCtxRef.current) {
-            audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        }
-        const audioCtx = audioCtxRef.current;
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
-        const oscillator = audioCtx.createOscillator();
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-        oscillator.connect(audioCtx.destination);
-        oscillator.start();
-        setTimeout(() => {
-            oscillator.stop();
-        }, duration);
-    };
     
     // Effect for the timer display logic
     useEffect(() => {
@@ -74,27 +57,48 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                 if (!activeDynamicTimer.isRunning) {
                      if (activeDynamicTimer.startTime === null) { // Reset state
                         setDisplayTime(activeDynamicTimer.mode === 'countdown' ? activeDynamicTimer.duration : 0);
+                        setAnnouncedMilestones(new Set()); // Limpa os anúncios no reset
                     }
-                    // If paused, the time is frozen, no need to update display continuously
                     return;
                 }
 
                 const elapsed = (Date.now() - activeDynamicTimer.startTime) / 1000;
-                
+                let remaining = 0;
+
                 if (activeDynamicTimer.mode === 'countdown') {
-                    const remaining = Math.max(0, activeDynamicTimer.duration - elapsed);
+                    remaining = Math.max(0, activeDynamicTimer.duration - elapsed);
                     setDisplayTime(remaining);
-                    if (remaining === 0) {
-                        onPauseDynamicTimer();
-                        playBeep(880, 500); // End beep
-                    } else if (Math.floor(remaining) > 0 && Math.floor(remaining) % 60 === 0 && Math.floor(remaining) !== Math.floor(displayTime)) {
-                        playBeep(); // Minute beep
-                    }
                 } else { // countup
                     setDisplayTime(elapsed);
-                    if (Math.floor(elapsed) > 0 && Math.floor(elapsed) % 60 === 0 && Math.floor(elapsed) !== Math.floor(displayTime)) {
-                        playBeep();
+                }
+
+                // Lógica de anúncios de voz
+                const remainingMinutes = Math.floor(remaining / 60);
+                const remainingSeconds = Math.floor(remaining);
+
+                const checkAndAnnounce = (milestone: string, text: string) => {
+                    if (!announcedMilestones.has(milestone)) {
+                        speak(text);
+                        setAnnouncedMilestones(prev => new Set(prev).add(milestone));
                     }
+                };
+
+                if (remaining < 11 && remaining > 0) {
+                    const second = Math.floor(remaining);
+                    if (second > 0) {
+                        checkAndAnnounce(`countdown-${second}`, `${second}`);
+                    }
+                } else if (remainingMinutes < 1 && remaining > 10) {
+                    checkAndAnnounce('final-minute', 'Candidatos, minuto final');
+                } else if (remainingMinutes < 5 && remaining > 60) {
+                    checkAndAnnounce('5-minutes', 'Candidatos, faltam 5 minutos');
+                } else if (remainingMinutes < 10 && remaining > 300) {
+                    checkAndAnnounce('10-minutes', 'Candidatos, faltam 10 minutos');
+                }
+
+                if (remaining === 0) {
+                    checkAndAnnounce('end', 'Tempo encerrado');
+                    onPauseDynamicTimer();
                 }
             } else {
                  setDisplayTime(initialMinutes * 60);
@@ -102,13 +106,13 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
         };
 
         if (intervalRef.current) clearInterval(intervalRef.current);
-        intervalRef.current = window.setInterval(updateDisplay, 250); // Update display frequently
+        intervalRef.current = window.setInterval(updateDisplay, 500); // Intervalo um pouco maior é suficiente
 
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
 
-    }, [activeDynamicTimer, dynamic.id, displayTime, onPauseDynamicTimer, initialMinutes]);
+    }, [activeDynamicTimer, dynamic.id, onPauseDynamicTimer, initialMinutes, announcedMilestones]);
 
 
     useEffect(() => {
@@ -165,6 +169,8 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
     };
 
     const handleStartTimer = () => {
+        setAnnouncedMilestones(new Set());
+        speak("Candidatos, cronômetro iniciado");
         onStartDynamicTimer(dynamic.id, initialMinutes, timerMode);
     };
     

@@ -9,7 +9,7 @@ import ApplicationForm from './components/application/ApplicationForm';
 import { generateInterviewInvitationMessage } from './services/geminiService';
 import AIMessageOfferToast from './components/notifications/AIMessageOfferToast';
 import { auth } from './services/firebase';
-import { jobService, candidateService, talentService, messageService, historyService, dynamicService, userService } from './services/firestoreService';
+import { jobService, candidateService, talentService, messageService, historyService, dynamicService, userService, activeTimerService } from './services/firestoreService';
 
 interface ApplicationFormData {
     jobId: string;
@@ -118,6 +118,7 @@ function App() {
           messageService.listen(setMessages),
           historyService.listen(setHistory),
           dynamicService.listen(setDynamics),
+          activeTimerService.listen(setActiveDynamicTimer),
         ];
 
         return () => unsubscribes.forEach(unsub => unsub());
@@ -724,37 +725,38 @@ function App() {
   };
 
   // Dynamics Timer Management
-  const handleStartDynamicTimer = (dynamicId: string, durationMinutes: number, mode: 'countdown' | 'countup') => {
-      setActiveDynamicTimer({
+  const handleStartDynamicTimer = async (dynamicId: string, durationMinutes: number, mode: 'countdown' | 'countup') => {
+      const newTimerState: ActiveDynamicTimer = {
           dynamicId,
           startTime: Date.now(),
           duration: durationMinutes * 60,
           isRunning: true,
           mode,
           pauseTime: null,
+      };
+      await activeTimerService.set(newTimerState);
+  };
+
+  const handlePauseDynamicTimer = async () => {
+      if (!activeDynamicTimer || !activeDynamicTimer.isRunning) return;
+      await activeTimerService.update({ isRunning: false, pauseTime: Date.now() });
+  };
+
+  const handleResumeDynamicTimer = async () => {
+      if (!activeDynamicTimer || activeDynamicTimer.isRunning || !activeDynamicTimer.pauseTime) return;
+      const elapsedPausedTime = Date.now() - activeDynamicTimer.pauseTime;
+      await activeTimerService.update({
+          isRunning: true,
+          startTime: (activeDynamicTimer.startTime || 0) + elapsedPausedTime,
+          pauseTime: null,
       });
   };
 
-  const handlePauseDynamicTimer = () => {
-      setActiveDynamicTimer(prev => {
-          if (!prev || !prev.isRunning) return prev;
-          return { ...prev, isRunning: false, pauseTime: Date.now() };
-      });
-  };
-
-  const handleResumeDynamicTimer = () => {
-      setActiveDynamicTimer(prev => {
-          if (!prev || prev.isRunning || !prev.pauseTime) return prev;
-          const elapsedPausedTime = Date.now() - prev.pauseTime;
-          return { ...prev, isRunning: true, startTime: prev.startTime + elapsedPausedTime, pauseTime: null };
-      });
-  };
-
-  const handleResetDynamicTimer = (dynamicId: string) => {
-      setActiveDynamicTimer(prev => {
-          if (!prev || prev.dynamicId !== dynamicId) return prev;
-          return { ...prev, startTime: null, isRunning: false, pauseTime: null };
-      });
+  const handleResetDynamicTimer = async () => {
+      if (!activeDynamicTimer) return;
+      // To reset, we set a state that indicates the timer is not running and has no start time.
+      // The local component (`DynamicViewerModal`) will interpret this as a reset state.
+      await activeTimerService.update({ startTime: null, isRunning: false, pauseTime: null });
   };
 
 

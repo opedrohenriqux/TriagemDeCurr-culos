@@ -19,26 +19,17 @@ export const analyzeCandidateWithAI = async (candidate: Candidate, jobTitle: str
     Dados do Candidato:
     - Nome: ${candidate.name}
     - Idade: ${candidate.age}
-    - Localização: ${candidate.location}
     - Experiência: ${candidate.experience}
     - Educação: ${candidate.education}
     - Habilidades: ${candidate.skills.join(', ')}
     - Resumo: ${candidate.summary}
 
-    Com base nos dados fornecidos, realize a seguinte análise aprofundada e retorne um JSON.
-    NÃO use formatação Markdown (como "**") no texto.
-
+    Com base nos dados fornecidos, realize a seguinte análise aprofundada e retorne um JSON:
     1.  **summary**: Um resumo conciso e detalhado do perfil do candidato, destacando sua adequação para a vaga e mencionando potenciais pontos de atenção.
     2.  **strengths**: Uma lista (array de strings) com os 3 principais pontos fortes do candidato para esta vaga.
     3.  **weaknesses**: Uma lista (array de strings) com os 2 principais pontos a serem desenvolvidos ou que representam menor aderência à vaga.
-    4.  **hardSkills**: Uma lista (array de strings) das principais habilidades técnicas (hard skills) do candidato.
-    5.  **softSkills**: Uma lista (array de strings) das principais habilidades comportamentais (soft skills) do candidato.
-    6.  **culturalFit**: Uma análise de uma frase sobre o alinhamento do candidato com os valores da empresa: "dar o melhor sempre" e "buscar evolução fornecendo melhor qualidade".
-    7.  **fitScore**: Um score de 0 a 10, onde 10 é o ajuste perfeito, representando a compatibilidade do candidato com a vaga de ${jobTitle}.
-    8.  **interviewQuestions**: Uma lista (array de strings) com 3 perguntas de entrevista inteligentes e personalizadas.
-    9.  **locationAnalysis**: Uma análise sobre a localização do candidato. Estime a distância em KM do bairro/cidade fornecido até o "Shopping Dom Pedro, Campinas, SP".
-    10. **estimatedDistance**: Uma string com a distância estimada (ex: "Aproximadamente 15 km").
-    11. **monthlyCommuteCost**: Uma estimativa do custo mensal de transporte público (ônibus) para o trajeto diário de ida e volta, considerando 22 dias úteis (ex: "R$ 250,00").
+    4.  **fitScore**: Um score de 0 a 10, onde 10 é o ajuste perfeito, representando a compatibilidade do candidato com a vaga de ${jobTitle}.
+    5.  **interviewQuestions**: Uma lista (array de strings) com 3 perguntas de entrevista inteligentes e personalizadas, baseadas especificamente nas habilidades e na experiência (ou falta dela) do candidato, para aprofundar a avaliação.
   `;
 
   try {
@@ -63,15 +54,9 @@ export const analyzeCandidateWithAI = async (candidate: Candidate, jobTitle: str
             interviewQuestions: {
               type: Type.ARRAY,
               items: { type: Type.STRING }
-            },
-            locationAnalysis: { type: Type.STRING },
-            estimatedDistance: { type: Type.STRING },
-            monthlyCommuteCost: { type: Type.STRING },
-            hardSkills: { type: Type.ARRAY, items: { type: Type.STRING } },
-            softSkills: { type: Type.ARRAY, items: { type: Type.STRING } },
-            culturalFit: { type: Type.STRING }
+            }
           },
-          required: ['summary', 'strengths', 'weaknesses', 'fitScore', 'interviewQuestions', 'locationAnalysis', 'estimatedDistance', 'monthlyCommuteCost', 'hardSkills', 'softSkills', 'culturalFit']
+          required: ['summary', 'strengths', 'weaknesses', 'fitScore', 'interviewQuestions']
         }
       }
     });
@@ -453,37 +438,5 @@ export const analyzeResumeWithAI = async (resumeDataUrl: string): Promise<string
             return "Erro: O arquivo fornecido não parece ser um PDF válido.";
         }
         return "Ocorreu um erro inesperado durante a análise do currículo.";
-    }
-};
-
-export const analyzeGroupSummaryWithAI = async (summaryText: string): Promise<string | null> => {
-    if (!ai) return "A funcionalidade de IA está desativada.";
-
-    const prompt = `
-        **Contexto:** Você é um especialista em análise de texto e detecção de plágio para um processo de recrutamento.
-        **Tarefa:** Analise o resumo de grupo a seguir, que foi criado como parte de uma dinâmica.
-
-        **Resumo do Grupo:**
-        ---
-        ${summaryText}
-        ---
-
-        **Sua Análise Deve Conter:**
-        1.  **Análise de Originalidade:** Comente sobre a originalidade das ideias apresentadas. O texto parece genérico ou demonstra um pensamento crítico e criativo?
-        2.  **Verificação de Plágio:** Avalie a probabilidade do texto ser copiado da internet. Ele usa uma linguagem muito formal, clichês ou frases que são comumente encontradas online? Forneça uma classificação de "Baixa", "Média" ou "Alta" probabilidade de plágio.
-        3.  **Qualidade da Conclusão:** Avalie a clareza, a coesão e a profundidade das conclusões do grupo. Elas são bem fundamentadas?
-
-        O resultado deve ser um parágrafo de análise conciso.
-    `;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-        });
-        return response.text.trim();
-    } catch (error) {
-        console.error("Erro ao analisar resumo do grupo com IA:", error);
-        return "Ocorreu um erro ao tentar analisar o resumo.";
     }
 };

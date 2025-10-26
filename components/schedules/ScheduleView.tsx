@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Candidate, Job, User, CandidateInterview, Dynamic, DynamicTimer } from '../../types';
+import { Candidate, Job, User, CandidateInterview, Dynamic, ActiveDynamicTimer } from '../../types';
 import InitialsAvatar from '../common/InitialsAvatar';
 import InterviewSchedulerModal from './InterviewSchedulerModal';
 import InterviewFeedbackModal from './InterviewFeedbackModal';
@@ -17,9 +17,9 @@ interface ScheduleViewProps {
     onAddDynamic: (dynamic: Omit<Dynamic, 'id'>) => void;
     onUpdateDynamic: (dynamic: Dynamic) => void;
     onDeleteDynamic: (dynamicId: string) => void;
-    dynamicTimers: DynamicTimer[];
+    activeDynamicTimer: ActiveDynamicTimer | null;
     onStartDynamicTimer: (dynamicId: string, durationMinutes: number, mode: 'countdown' | 'countup') => void;
-    onPauseDynamicTimer: (dynamicId: string) => void;
+    onPauseDynamicTimer: () => void;
     onResumeDynamicTimer: () => void;
     onResetDynamicTimer: (dynamicId: string) => void;
 }

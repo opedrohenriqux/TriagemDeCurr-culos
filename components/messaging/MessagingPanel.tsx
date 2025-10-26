@@ -23,14 +23,14 @@ const NewConversationModal: React.FC<NewConversationModalProps> = ({ type, candi
             return candidates
                 .filter(c => ['screening', 'approved', 'offer', 'waitlist', 'hired'].includes(c.status))
                 .filter(c => !existingPartnerIds.has(`candidate-${c.id}`))
-                .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                 .map(c => ({ id: `candidate-${c.id}`, name: c.name }));
         } else { // team
-            const currentUserId = (currentUser.id && currentUser.id.includes('-')) ? currentUser.id.split('-')[1] : null;
+            const currentUserId = currentUser.id.split('-')[1];
             return users
                 .filter(u => u.id !== currentUserId)
                 .filter(u => !existingPartnerIds.has(`user-${u.id}`))
-                .sort((a, b) => (a.username ?? '').localeCompare(b.username ?? ''))
+                .sort((a, b) => (a.username || '').localeCompare(b.username || ''))
                 .map(u => ({ id: `user-${u.id}`, name: u.username }));
         }
     }, [type, candidates, users, currentUser, conversations]);
@@ -138,11 +138,10 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
     const allConversations = useMemo(() => {
         const conversations: { [key: string]: { partner: { id: string, name: string }, messages: Message[] } } = {};
 
-        // 1. Initialize conversations from existing messages
         messages.forEach(msg => {
             const partnerId = msg.senderId === currentUser.id ? msg.receiverId : msg.senderId;
             
-            if (!userMap.has(partnerId)) return;
+            if (!userMap.has(partnerId)) return; // Defensively skip messages from/to deleted users
 
             if (!conversations[partnerId]) {
                 const partnerInfo = userMap.get(partnerId);
@@ -158,24 +157,8 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
             }
         });
 
-        // 2. Ensure all team members are available for conversation, even without prior messages
-        if (currentUser.type === 'user') {
-            const currentUserId = currentUser.id.split('-')[1];
-            users.forEach(user => {
-                const partnerId = `user-${user.id}`;
-                if (user.id !== currentUserId && !conversations[partnerId]) {
-                    conversations[partnerId] = {
-                        partner: { id: partnerId, name: user.username },
-                        messages: []
-                    };
-                }
-            });
-        }
-
         return Object.values(conversations).map(convo => {
-            const lastMessage = convo.messages.length > 0
-                ? [...convo.messages].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
-                : null;
+            const lastMessage = [...convo.messages].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
             const unreadCount = convo.messages.filter(m => m.receiverId === currentUser.id && !m.isRead).length;
 
             return {
@@ -184,7 +167,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
                 unreadCount: unreadCount
             };
         });
-    }, [messages, currentUser.id, userMap, users, currentUser.type]);
+    }, [messages, currentUser.id, userMap]);
 
     const displayedConversations = useMemo(() => {
         // 1. Filter by archive status and tab type first
@@ -223,8 +206,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
         
         // 3. Sort the final list
         return filteredList.sort((a, b) => {
-            if (!a.lastMessage) return 1;
-            if (!b.lastMessage) return -1;
+            if (!a.lastMessage || !b.lastMessage) return 0;
             const timeA = new Date(a.lastMessage.timestamp).getTime();
             const timeB = new Date(b.lastMessage.timestamp).getTime();
             return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;

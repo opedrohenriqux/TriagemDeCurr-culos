@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Dynamic, Candidate, DynamicTimer } from '../../types';
+import { Dynamic, Candidate, ActiveDynamicTimer } from '../../types';
 import DynamicEditorModal from './DynamicEditorModal';
 import DynamicViewerModal from './DynamicViewerModal';
 import InitialsAvatar from '../common/InitialsAvatar';
@@ -10,9 +10,9 @@ interface DynamicsViewProps {
     onAddDynamic: (dynamic: Omit<Dynamic, 'id'>) => void;
     onUpdateDynamic: (dynamic: Dynamic) => void;
     onDeleteDynamic: (dynamicId: string) => void;
-    dynamicTimers: DynamicTimer[];
+    activeDynamicTimer: ActiveDynamicTimer | null;
     onStartDynamicTimer: (dynamicId: string, durationMinutes: number, mode: 'countdown' | 'countup') => void;
-    onPauseDynamicTimer: (dynamicId: string) => void;
+    onPauseDynamicTimer: () => void;
     onResumeDynamicTimer: () => void;
     onResetDynamicTimer: (dynamicId: string) => void;
 }

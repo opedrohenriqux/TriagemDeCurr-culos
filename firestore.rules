@@ -35,22 +35,15 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
     }
 
-    // TALENT POOL: Only admins can access. New talent can only be created if no existing talent shares the same originalCandidateId.
+    // TALENT POOL, HISTORY, DYNAMICS: Only admins can access.
     match /talentPool/{talentId} {
-      allow read, update, delete: if isAdmin();
-      allow create: if isAdmin() && !exists(/databases/$(database)/documents/talentPool/$(request.resource.data.originalCandidateId));
+      allow read, write: if isAdmin();
     }
     match /history/{eventId} {
       allow read, write: if isAdmin();
     }
     match /dynamics/{dynamicId} {
       allow read, write: if isAdmin();
-    }
-
-    // DYNAMIC TIMERS: Admins can manage timers, any authenticated user can read them (for synchronization).
-    match /dynamicTimers/{timerId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
     }
 
     // MESSAGES: Only participants in the conversation can read or write.

@@ -2,6 +2,21 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Candidate, CandidateInterview, User, Job } from '../../types';
 import InitialsAvatar from '../common/InitialsAvatar';
 
+// Helper function for robust date handling
+const safeToISODate = (date: Date | string | null | undefined): string => {
+    if (!date) return new Date().toISOString().split('T')[0];
+    try {
+        const d = typeof date === 'string' ? new Date(date) : date;
+        if (isNaN(d.getTime())) {
+            throw new Error('Invalid date');
+        }
+        return d.toISOString().split('T')[0];
+    } catch (error) {
+        console.warn('safeToISODate failed, falling back to today:', error);
+        return new Date().toISOString().split('T')[0];
+    }
+};
+
 interface InterviewSchedulerModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -96,8 +111,8 @@ const InterviewSchedulerModal: React.FC<InterviewSchedulerModalProps> = ({ isOpe
     const bookedSlotsForSelectedDay = useMemo(() => {
         const slots = new Set<string>();
         if (!selectedDate) return slots;
-        
-        const selectedDateString = selectedDate.toISOString().split('T')[0];
+
+        const selectedDateString = safeToISODate(selectedDate);
 
         allCandidates.forEach(c => {
             if (c.interview && c.interview.date === selectedDateString) {
@@ -122,7 +137,7 @@ const InterviewSchedulerModal: React.FC<InterviewSchedulerModalProps> = ({ isOpe
 
             // --- Safely set initial form state ---
             const defaultInterview: CandidateInterview = {
-                date: new Date().toISOString().split('T')[0],
+                date: safeToISODate(new Date()),
                 time: '',
                 location: 'Online (Google Meet)',
                 interviewers: [],
@@ -143,7 +158,7 @@ const InterviewSchedulerModal: React.FC<InterviewSchedulerModalProps> = ({ isOpe
             }
 
             // Ensure the date in details matches the final initialDate
-            initialDetails.date = initialDate.toISOString().split('T')[0];
+            initialDetails.date = safeToISODate(initialDate);
 
             setSelectedDate(initialDate);
             setDetails(initialDetails);
@@ -169,7 +184,7 @@ const InterviewSchedulerModal: React.FC<InterviewSchedulerModalProps> = ({ isOpe
                 if (checkDate < new Date()) { checkDate.setHours(checkDate.getHours() + 1); continue; }
                 
                 if (!bookedSlots.has(checkDate.toISOString())) {
-                    availableSlots.push({ date: checkDate.toISOString().split('T')[0], time: checkDate.toTimeString().substring(0, 5) });
+                    availableSlots.push({ date: safeToISODate(checkDate), time: checkDate.toTimeString().substring(0, 5) });
                 }
                 checkDate.setHours(checkDate.getHours() + 1);
             }
@@ -189,7 +204,7 @@ const InterviewSchedulerModal: React.FC<InterviewSchedulerModalProps> = ({ isOpe
 
     const handleDateSelect = (date: Date) => {
         setSelectedDate(date);
-        setDetails(prev => ({...prev, date: date.toISOString().split('T')[0], time: ''})); // Reset time on date change
+        setDetails(prev => ({ ...prev, date: safeToISODate(date), time: '' })); // Reset time on date change
     };
 
     const handleInterviewerToggle = (username: string) => {

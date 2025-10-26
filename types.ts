@@ -83,6 +83,7 @@ export interface Candidate {
     interview?: CandidateInterview;
     hireDate?: string;
     resumeUrl?: string;
+    aiAnalysis?: AIAnalysis;
 }
 
 export interface Talent {
@@ -136,6 +137,8 @@ export interface DynamicGroup {
     members: string[];
     groupNotes?: string;
     individualNotes?: { [candidateId: string]: string };
+    simpleId?: string;
+    groupSummary?: string;
 }
 
 export interface Dynamic {
@@ -148,7 +151,16 @@ export interface Dynamic {
     generalNotes?: string;
 }
 
-export interface ActiveDynamicTimer {
+export interface DynamicTimer {
+    id: string; // Same as dynamicId
+    startTime: number | null;
+    duration: number;
+    isRunning: boolean;
+    mode: 'countdown' | 'countup';
+    pauseTime: number | null;
+}
+
+export interface LocalActiveDynamicTimer {
     dynamicId: string;
     startTime: number | null;
     duration: number;
@@ -163,6 +175,12 @@ export interface AIAnalysis {
     weaknesses: string[];
     fitScore: number;
     interviewQuestions: string[];
+    locationAnalysis?: string;
+    estimatedDistance?: string;
+    monthlyCommuteCost?: string;
+    hardSkills?: string[];
+    softSkills?: string[];
+    culturalFit?: string;
 }
 
 export interface ChatMessage {

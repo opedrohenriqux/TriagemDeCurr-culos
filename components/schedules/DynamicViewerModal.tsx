@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dynamic, Candidate, ActiveDynamicTimer } from '../../types';
+import { Dynamic, Candidate, DynamicTimer } from '../../types';
 import InitialsAvatar from '../common/InitialsAvatar';
+import { analyzeGroupSummaryWithAI } from '../../services/geminiService';
 
 interface DynamicViewerModalProps {
     isOpen: boolean;
@@ -9,20 +10,24 @@ interface DynamicViewerModalProps {
     onUpdateDynamic: (dynamic: Dynamic) => void;
     onEdit: () => void;
     allCandidates: Candidate[];
-    activeDynamicTimer: ActiveDynamicTimer | null;
+    dynamicTimers: DynamicTimer[];
     onStartDynamicTimer: (dynamicId: string, durationMinutes: number, mode: 'countdown' | 'countup') => void;
-    onPauseDynamicTimer: () => void;
+    onPauseDynamicTimer: (dynamicId: string) => void;
     onResumeDynamicTimer: () => void;
     onResetDynamicTimer: (dynamicId: string) => void;
 }
 
 const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
-    const { isOpen, onClose, dynamic, onUpdateDynamic, onEdit, allCandidates, activeDynamicTimer, onStartDynamicTimer, onPauseDynamicTimer, onResumeDynamicTimer, onResetDynamicTimer } = props;
+    const { isOpen, onClose, dynamic, onUpdateDynamic, onEdit, allCandidates, dynamicTimers, onStartDynamicTimer, onPauseDynamicTimer, onResumeDynamicTimer, onResetDynamicTimer } = props;
     
+    const activeDynamicTimer = useMemo(() => dynamicTimers.find(t => t.id === dynamic.id), [dynamicTimers, dynamic.id]);
+
     const [generalNotes, setGeneralNotes] = useState('');
     const [groupNotes, setGroupNotes] = useState<Record<number, string>>({}); // key: group index
     const [individualNotes, setIndividualNotes] = useState<Record<number, Record<number, string>>>({}); // key: group index -> candidateId
     const [isSaved, setIsSaved] = useState(false);
+    const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     // Timer State
     const [isDynamicStarted, setIsDynamicStarted] = useState(false);
@@ -72,7 +77,7 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                     const remaining = Math.max(0, activeDynamicTimer.duration - elapsed);
                     setDisplayTime(remaining);
                     if (remaining === 0) {
-                        onPauseDynamicTimer();
+                        onPauseDynamicTimer(dynamic.id);
                         playBeep(880, 500); // End beep
                     } else if (Math.floor(remaining) > 0 && Math.floor(remaining) % 60 === 0 && Math.floor(remaining) !== Math.floor(displayTime)) {
                         playBeep(); // Minute beep
@@ -163,9 +168,9 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
     
     const handleResumeOrPause = () => {
         if (isTimerRunning) {
-            onPauseDynamicTimer();
+            onPauseDynamicTimer(dynamic.id);
         } else {
-            onResumeDynamicTimer();
+            onResumeDynamicTimer(dynamic.id);
         }
     };
 
@@ -309,6 +314,31 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                                         className="w-full text-sm px-2 py-1 bg-light-surface dark:bg-surface border border-light-border dark:border-border rounded-md focus:ring-2 focus:ring-light-secondary dark:focus:ring-secondary"
                                     />
                                 </div>
+                                {group.groupSummary && (
+                                    <div className="mt-4">
+                                        <h5 className="text-xs font-bold uppercase text-light-text-secondary dark:text-text-secondary mb-1">Resumo Enviado pelo Grupo</h5>
+                                        <div className="p-2 bg-light-surface dark:bg-surface rounded-md text-sm whitespace-pre-wrap">
+                                            {group.groupSummary}
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                setIsAnalyzing(true);
+                                                const result = await analyzeGroupSummaryWithAI(group.groupSummary || '');
+                                                setAnalysisResult(result);
+                                                setIsAnalyzing(false);
+                                            }}
+                                            disabled={isAnalyzing}
+                                            className="mt-2 text-xs font-semibold text-light-primary dark:text-primary hover:underline disabled:opacity-50"
+                                        >
+                                            {isAnalyzing ? 'Analisando...' : 'Analisar com IA'}
+                                        </button>
+                                        {analysisResult && (
+                                            <div className="mt-2 p-2 bg-light-primary/10 dark:bg-primary/10 rounded-md text-sm">
+                                                {analysisResult}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         ))}
                         {dynamic.groups.length === 0 && (

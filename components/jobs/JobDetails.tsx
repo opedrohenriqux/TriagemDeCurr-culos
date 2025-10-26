@@ -325,7 +325,6 @@ interface ProfileModalProps {
     candidate: Candidate;
     jobTitle: string;
     onClose: () => void;
-    onAnalysisComplete: (candidateId: number, analysis: AIAnalysis) => void;
     onUpdateCandidate: (candidate: Candidate) => void;
     onViewResume: () => void;
     onArchiveCandidate: (candidateId: number) => void;
@@ -333,7 +332,7 @@ interface ProfileModalProps {
 
 const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClose, onAnalysisComplete, onUpdateCandidate, onViewResume, onArchiveCandidate }) => {
     const [isLoading, setIsLoading] = useState(false);
-    const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
+    const [analysis, setAnalysis] = useState<AIAnalysis | null>(candidate.aiAnalysis || null);
     const [error, setError] = useState<string | null>(null);
     const [isAnalyzingResume, setIsAnalyzingResume] = useState(false);
     const [resumeAnalysisResult, setResumeAnalysisResult] = useState<string | null>(null);
@@ -366,7 +365,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
         
         if (result) {
             setAnalysis(result);
-            onAnalysisComplete(candidate.id, result);
+            onUpdateCandidate({ ...candidate, aiAnalysis: result });
         } else {
             setError("Não foi possível concluir a análise. Verifique sua conexão ou a configuração da API e tente novamente.");
         }
@@ -490,6 +489,22 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
                                     <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Resumo da IA</h5>
                                     <p className="text-sm text-light-text-secondary dark:text-text-secondary">{analysis.summary}</p>
                                 </div>
+                                {analysis.locationAnalysis && (
+                                    <div>
+                                        <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Análise de Localização</h5>
+                                        <p className="text-sm text-light-text-secondary dark:text-text-secondary">{analysis.locationAnalysis}</p>
+                                        <div className="flex justify-around mt-2 text-center">
+                                            <div>
+                                                <p className="font-bold text-light-primary dark:text-primary">{analysis.estimatedDistance || 'N/A'}</p>
+                                                <p className="text-xs text-light-text-secondary dark:text-text-secondary">Distância Estimada</p>
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-light-primary dark:text-primary">{analysis.monthlyCommuteCost || 'N/A'}</p>
+                                                <p className="text-xs text-light-text-secondary dark:text-text-secondary">Custo Mensal Estimado</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 {resumeAnalysisResult && (
                                     <div>
                                         <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Análise de Currículo</h5>
@@ -507,6 +522,22 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
                                     <ul className="list-disc list-inside text-sm text-light-text-secondary dark:text-text-secondary">
                                         {analysis.weaknesses.map((w,i) => <li key={i}>{w}</li>)}
                                     </ul>
+                                </div>
+                                <div>
+                                    <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Hard Skills</h5>
+                                    <ul className="list-disc list-inside text-sm text-light-text-secondary dark:text-text-secondary">
+                                        {analysis.hardSkills?.map((s,i) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Soft Skills</h5>
+                                    <ul className="list-disc list-inside text-sm text-light-text-secondary dark:text-text-secondary">
+                                        {analysis.softSkills?.map((s,i) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Fit Cultural</h5>
+                                    <p className="text-sm text-light-text-secondary dark:text-text-secondary">{analysis.culturalFit}</p>
                                 </div>
                                  {analysis.interviewQuestions && analysis.interviewQuestions.length > 0 && (
                                     <div>
@@ -1146,7 +1177,6 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
             candidate={selectedCandidate} 
             jobTitle={job.title} 
             onClose={() => setSelectedCandidate(null)}
-            onAnalysisComplete={handleAnalysisComplete}
             onUpdateCandidate={onUpdateCandidate}
             onViewResume={() => setIsResumeModalOpen(true)}
             onArchiveCandidate={onArchiveCandidate}

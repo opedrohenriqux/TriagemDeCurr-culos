@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Header from './Header';
-import { User, Job, Candidate, Talent, CandidateInterview, Message, HistoryEvent, Dynamic, ActiveDynamicTimer } from '../../types';
+import { User, Job, Candidate, Talent, CandidateInterview, Message, HistoryEvent, Dynamic, DynamicTimer } from '../../types';
 
 // Import views
 import JobList from '../jobs/JobList';
@@ -37,7 +37,7 @@ interface MainLayoutProps {
   archivedConversations: Set<string>;
   dynamics: Dynamic[];
   syncStatus: 'idle' | 'syncing' | 'saved' | 'error';
-  activeDynamicTimer: ActiveDynamicTimer | null;
+  dynamicTimers: DynamicTimer[];
   onOpenMessaging: (candidateId?: number | null) => void;
   onCloseMessaging: () => void;
   onSendMessage: (senderId: string, receiverId: string, text: string) => void;
@@ -157,7 +157,7 @@ const MainLayout: React.FC<MainLayoutProps> = (props) => {
             onAddDynamic={props.onAddDynamic}
             onUpdateDynamic={props.onUpdateDynamic}
             onDeleteDynamic={props.onDeleteDynamic}
-            activeDynamicTimer={props.activeDynamicTimer}
+            dynamicTimers={props.dynamicTimers}
             onStartDynamicTimer={props.onStartDynamicTimer}
             onPauseDynamicTimer={props.onPauseDynamicTimer}
             onResumeDynamicTimer={props.onResumeDynamicTimer}

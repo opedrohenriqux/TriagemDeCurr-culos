@@ -201,7 +201,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = (props) => {
 
         setIsSubmitting(true);
         try {
-            const newId = await onAddCandidate({ ...formData, resumeFile: resumeDataUrl });
+            const newId = await onAddCandidate({ ...formData, resumeUrl: resumeDataUrl });
             setSubmittedCandidateId(newId);
             setView('success');
             window.scrollTo(0, 0);

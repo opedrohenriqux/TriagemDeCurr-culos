@@ -89,18 +89,21 @@ const DynamicEditorModal: React.FC<DynamicEditorModalProps> = ({ isOpen, onClose
         const shuffled = shuffleArray([...participants]);
         const newGroups: DynamicGroup[] = [];
         
-        if (groupSize === 1) { // Individual
+        let groupCounter = 1;
+        const prefix = groupSize === 1 ? 'individual' : groupSize === 2 ? 'dupla' : groupSize === 3 ? 'trio' : 'grupo';
+
+        if (groupSize === 1) {
             shuffled.forEach((memberId, index) => {
-                newGroups.push({ name: `Individual ${index + 1}`, members: [memberId] });
+                const simpleId = `${prefix}-${String(index + 1).padStart(3, '0')}`;
+                newGroups.push({ name: `Individual ${index + 1}`, members: [memberId], simpleId });
             });
         } else {
-            let groupIndex = 1;
             for (let i = 0; i < shuffled.length; i += groupSize) {
                 const chunk = shuffled.slice(i, i + groupSize);
-                newGroups.push({ name: `Grupo ${groupIndex++}`, members: chunk });
+                const simpleId = `${prefix}-${String(groupCounter++).padStart(3, '0')}`;
+                newGroups.push({ name: `Grupo ${groupCounter - 1}`, members: chunk, simpleId });
             }
 
-            // Handle remainders by merging the last group if it's too small
             if (newGroups.length > 1 && newGroups[newGroups.length - 1].members.length < groupSize / 2) {
                 const lastGroup = newGroups.pop()!;
                 newGroups[newGroups.length - 1].members.push(...lastGroup.members);
@@ -207,7 +210,10 @@ const DynamicEditorModal: React.FC<DynamicEditorModalProps> = ({ isOpen, onClose
                         <div className="max-h-[50vh] overflow-y-auto pr-2 space-y-3">
                             {groups.length > 0 ? groups.map((group, index) => (
                                 <div key={index} className="p-3 bg-light-background dark:bg-background rounded-md border border-light-border dark:border-border">
-                                    <h4 className="font-bold text-light-primary dark:text-primary mb-2">{group.name}</h4>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h4 className="font-bold text-light-primary dark:text-primary">{group.name}</h4>
+                                        <p className="text-xs font-mono bg-light-surface dark:bg-surface px-2 py-1 rounded-md">{group.simpleId}</p>
+                                    </div>
                                     <div className="space-y-2">
                                         {group.members.map(memberId => (
                                             <div key={memberId} className="flex items-center gap-2">

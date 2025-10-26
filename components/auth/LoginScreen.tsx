@@ -9,8 +9,6 @@ const Spinner: React.FC = () => (
     <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
 );
 
-import React, { useState, useEffect } from 'react';
-
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onSwitchToApplication }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

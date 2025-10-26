@@ -66,3 +66,4 @@ export const messageService = createFirestoreService<Message>('messages');
 export const historyService = createFirestoreService<HistoryEvent>('history');
 export const dynamicService = createFirestoreService<Dynamic>('dynamics');
 export const userService = createFirestoreService<User>('users');
+export const dynamicTimerService = createFirestoreService<DynamicTimer>('dynamicTimers');

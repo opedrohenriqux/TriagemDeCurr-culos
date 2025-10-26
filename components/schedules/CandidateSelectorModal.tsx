@@ -16,7 +16,7 @@ const CandidateSelectorModal: React.FC<CandidateSelectorModalProps> = ({
     isOpen,
     onClose,
     onSelect,
-    allJobs,
+    allJobs = [],
     allCandidates,
     initialSelectedIds
 }) => {

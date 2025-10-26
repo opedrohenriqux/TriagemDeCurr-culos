@@ -7,6 +7,7 @@ import InitialsAvatar from '../common/InitialsAvatar';
 interface DynamicsViewProps {
     dynamics: Dynamic[];
     candidates: Candidate[];
+    jobs: Job[];
     onAddDynamic: (dynamic: Omit<Dynamic, 'id'>) => void;
     onUpdateDynamic: (dynamic: Dynamic) => void;
     onDeleteDynamic: (dynamicId: string) => void;
@@ -18,7 +19,7 @@ interface DynamicsViewProps {
 }
 
 const DynamicsView: React.FC<DynamicsViewProps> = (props) => {
-    const { dynamics, candidates, onAddDynamic, onUpdateDynamic, onDeleteDynamic } = props;
+    const { dynamics, candidates, jobs, onAddDynamic, onUpdateDynamic, onDeleteDynamic } = props;
     const [isEditorModalOpen, setIsEditorModalOpen] = useState(false);
     const [editingDynamic, setEditingDynamic] = useState<Dynamic | null>(null);
     const [isViewerModalOpen, setIsViewerModalOpen] = useState(false);
@@ -158,6 +159,7 @@ const DynamicsView: React.FC<DynamicsViewProps> = (props) => {
                     }}
                     dynamicToEdit={editingDynamic}
                     allCandidates={candidates}
+                    allJobs={jobs}
                 />
             )}
             

@@ -65,11 +65,9 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                 const remaining = Math.max(0, activeDynamicTimer.duration - elapsed);
                 setDisplayTime(remaining);
 
-                // Lógica de anúncios de voz a cada 5 minutos
                 const remainingMinutes = Math.floor(remaining / 60);
 
                 const checkAndAnnounce = (milestone: string, text: string) => {
-                    // Garante que "iniciado" seja o primeiro, mesmo que o tempo seja curto.
                     if (milestone !== 'start' && !announcedMilestones.has('start')) {
                         return;
                     }
@@ -79,9 +77,15 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                     }
                 };
 
-                // Anuncia a cada 5 minutos
-                if (remainingMinutes > 0 && remainingMinutes % 5 === 0) {
-                    // Usamos um truque para anunciar apenas uma vez por minuto
+                // Lógica de anúncios combinada
+                if (remaining < 11 && remaining > 0) {
+                    const second = Math.floor(remaining);
+                    if (second > 0) {
+                        checkAndAnnounce(`countdown-${second}`, `${second}`);
+                    }
+                } else if (remainingMinutes < 1 && remaining > 10) {
+                    checkAndAnnounce('final-minute', 'Candidatos, minuto final');
+                } else if (remainingMinutes > 0 && remainingMinutes % 5 === 0) {
                     if (Math.abs(remaining - (remainingMinutes * 60)) < 1) {
                        checkAndAnnounce(`${remainingMinutes}-minutes`, `Candidatos, faltam ${remainingMinutes} minutos`);
                     }

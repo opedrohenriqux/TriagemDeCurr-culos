@@ -43,9 +43,10 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // DYNAMICS: Any authenticated user can manage dynamics.
+    // DYNAMICS: Any authenticated user can read (for candidate view), but only admins can write.
     match /dynamics/{dynamicId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
 
     // APP STATE: Used for shared state like the active timer. Authenticated users can read/write.

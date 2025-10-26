@@ -140,21 +140,17 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
 
         messages.forEach(msg => {
             const partnerId = msg.senderId === currentUser.id ? msg.receiverId : msg.senderId;
-            
-            if (!userMap.has(partnerId)) return; // Defensively skip messages from/to deleted users
 
             if (!conversations[partnerId]) {
                 const partnerInfo = userMap.get(partnerId);
-                if (partnerInfo) {
-                     conversations[partnerId] = {
-                        partner: { id: partnerId, name: partnerInfo.name },
-                        messages: []
-                    };
-                }
+                // FIX: Handle race condition where user/candidate data might arrive after messages.
+                // Instead of skipping the conversation, create it with a placeholder name.
+                conversations[partnerId] = {
+                    partner: { id: partnerId, name: partnerInfo?.name || 'Carregando...' },
+                    messages: []
+                };
             }
-            if (conversations[partnerId]) {
-                conversations[partnerId].messages.push(msg);
-            }
+            conversations[partnerId].messages.push(msg);
         });
 
         return Object.values(conversations).map(convo => {

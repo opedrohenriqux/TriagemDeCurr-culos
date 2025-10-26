@@ -9,7 +9,7 @@ import ApplicationForm from './components/application/ApplicationForm';
 import { generateInterviewInvitationMessage } from './services/geminiService';
 import AIMessageOfferToast from './components/notifications/AIMessageOfferToast';
 import { auth } from './services/firebase';
-import { jobService, candidateService, talentService, messageService, historyService, dynamicService, userService } from './services/firestoreService';
+import { jobService, candidateService, talentService, messageService, historyService, dynamicService, userService, activeTimerService } from './services/firestoreService';
 
 interface ApplicationFormData {
     jobId: string;

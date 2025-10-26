@@ -26,7 +26,6 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
     const [viewMode, setViewMode] = useState<'recruiter' | 'candidate'>('recruiter');
 
     // Timer State
-    const [isDynamicStarted, setIsDynamicStarted] = useState(false);
     const [initialMinutes, setInitialMinutes] = useState(15);
     const [timerMode, setTimerMode] = useState<'countdown' | 'countup'>('countdown');
     const [displayTime, setDisplayTime] = useState(initialMinutes * 60);
@@ -126,8 +125,6 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
             setIndividualNotes(initialIndividualNotes);
         }
         // Reset local UI state when modal opens/changes dynamic
-        setIsDynamicStarted(activeDynamicTimer?.dynamicId === dynamic.id);
-        
         if(activeDynamicTimer?.dynamicId === dynamic.id){
             setInitialMinutes(activeDynamicTimer.duration / 60);
             setTimerMode(activeDynamicTimer.mode);
@@ -167,10 +164,6 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
         setTimeout(() => setIsSaved(false), 2000);
     };
 
-    const handleStartDynamic = () => {
-        setIsDynamicStarted(true);
-    };
-
     const handleStartTimer = () => {
         onStartDynamicTimer(dynamic.id, initialMinutes, timerMode);
     };
@@ -184,7 +177,7 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
     };
 
     const handleResetTimer = () => {
-        onResetDynamicTimer(dynamic.id);
+        onResetDynamicTimer();
     };
     
     const formatTime = (seconds: number) => {
@@ -248,12 +241,12 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                         <div className="p-4 bg-light-background dark:bg-background rounded-lg border border-light-border dark:border-border">
                             <h3 className="text-lg font-bold text-light-primary dark:text-primary mb-3">Timer da Dinâmica</h3>
                             
-                            {!isDynamicStarted ? (
+                            {activeDynamicTimer?.dynamicId !== dynamic.id ? (
                                 <button
-                                    onClick={handleStartDynamic}
+                                    onClick={() => onStartDynamicTimer(dynamic.id, initialMinutes, timerMode)}
                                     className="w-full bg-light-primary dark:bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-light-primary-hover dark:hover:bg-primary-hover transition-colors"
                                 >
-                                    Iniciar Dinâmica
+                                    Iniciar Timer
                                 </button>
                             ) : (
                                 <>

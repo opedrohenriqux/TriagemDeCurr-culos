@@ -186,10 +186,13 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
                     return { ...convo, candidate };
                 })
                 .filter(convo => {
-                    if (!convo.candidate) {
-                        return false; // Filter out if no matching candidate
-                    }
                     const nameMatch = convo.partner.name.toLowerCase().includes(searchTerm.toLowerCase());
+                    // If candidate data is not yet loaded, don't filter it out.
+                    // Only apply job/status filters once the candidate data is available.
+                    if (!convo.candidate) {
+                        // Still apply name search to "Carregando..." if needed, but mostly let it pass.
+                        return nameMatch;
+                    }
                     const jobMatch = jobFilter === 'all' || convo.candidate.jobId === jobFilter;
                     const statusMatch = statusFilter === 'all' || convo.candidate.status === statusFilter;
                     return nameMatch && jobMatch && statusMatch;

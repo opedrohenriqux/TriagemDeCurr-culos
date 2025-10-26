@@ -163,7 +163,9 @@ const InterviewSchedulerModal: React.FC<InterviewSchedulerModalProps> = ({ isOpe
             setSelectedDate(initialDate);
             setDetails(initialDetails);
 
-            // --- Generate AI Suggestions ---
+            // --- Generate AI Suggestions (only if job data is available) ---
+            if (!job) return;
+
             const bookedSlots = new Set<string>();
             allCandidates.forEach(c => {
                 if (c.interview) {

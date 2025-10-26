@@ -2,22 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { Candidate, Job, User, CandidateInterview, Dynamic, ActiveDynamicTimer } from '../../types';
 import InitialsAvatar from '../common/InitialsAvatar';
 import InterviewSchedulerModal from './InterviewSchedulerModal';
-
-// Helper function for robust date handling
-const safeToISODate = (date: Date | string | null | undefined): string => {
-    if (!date) return new Date().toISOString().split('T')[0];
-    try {
-        const d = typeof date === 'string' ? new Date(date) : date;
-        if (isNaN(d.getTime())) {
-            throw new Error('Invalid date');
-        }
-        return d.toISOString().split('T')[0];
-    } catch (error)
-        {
-        console.warn('safeToISODate failed, falling back to today:', error);
-        return new Date().toISOString().split('T')[0];
-    }
-};
 import InterviewFeedbackModal from './InterviewFeedbackModal';
 import InterviewReports from './InterviewReports';
 import DynamicsView from './DynamicsView';
@@ -117,7 +101,7 @@ const CalendarView: React.FC<{
                 {weeks.map((week, weekIndex) => (
                     <React.Fragment key={weekIndex}>
                         {week.map(day => {
-                            const dateKey = safeToISODate(day);
+                            const dateKey = day.toISOString().split('T')[0];
                             const interviews = interviewsByDate.get(dateKey) || [];
                             const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                             const hasInterviews = interviews.length > 0;
@@ -146,7 +130,7 @@ const CalendarView: React.FC<{
                             );
                         })}
                         
-                        {selectedDateKey && week.some(day => safeToISODate(day) === selectedDateKey) && (
+                        {selectedDateKey && week.some(day => day.toISOString().split('T')[0] === selectedDateKey) && (
                             <div className="col-span-7 p-4 bg-light-background dark:bg-background rounded-md my-1 animate-fade-in border border-light-primary/30 dark:border-primary/30">
                                 <div className="flex justify-between items-center">
                                     <h3 className="font-bold text-lg text-light-primary dark:text-primary">

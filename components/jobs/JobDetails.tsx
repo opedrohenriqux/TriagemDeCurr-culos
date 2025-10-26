@@ -336,13 +336,16 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
     const [analysis, setAnalysis] = useState<AIAnalysis | null>(candidate.aiAnalysis || null);
     const [error, setError] = useState<string | null>(null);
     const [isAnalyzingResume, setIsAnalyzingResume] = useState(false);
-    const [resumeAnalysisResult, setResumeAnalysisResult] = useState<string | null>(null);
+    const [resumeAnalysisResult, setResumeAnalysisResult] = useState<string | null>(candidate.aiAnalysis?.resumeAnalysis || null);
 
     useEffect(() => {
         // Se já existe uma análise, exiba-a. Se não, pode-se optar por buscar automaticamente.
         // Por enquanto, a busca é manual através do botão "Analisar".
         if (candidate.aiAnalysis) {
             setAnalysis(candidate.aiAnalysis);
+            if (candidate.aiAnalysis.resumeAnalysis) {
+                setResumeAnalysisResult(candidate.aiAnalysis.resumeAnalysis);
+            }
         }
     }, [candidate.aiAnalysis]);
 
@@ -357,6 +360,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
 
         if (result) {
             setResumeAnalysisResult(result);
+            const updatedAnalysis = { ...analysis, resumeAnalysis: result };
+            setAnalysis(updatedAnalysis as AIAnalysis);
+            const updatedCandidate = { ...candidate, aiAnalysis: updatedAnalysis };
+            onUpdateCandidate(updatedCandidate);
         } else {
             setError("Falha ao analisar o currículo.");
             setResumeAnalysisResult("Ocorreu um erro durante a análise. Por favor, tente novamente.");
@@ -590,11 +597,11 @@ interface JobDetailsProps {
   users: User[];
   onUpdateCandidate: (candidate: Candidate) => void;
   onBulkUpdateCandidates: (updatedCandidates: Candidate[]) => void;
-  onArchiveCandidate: (candidateId: number) => void;
-  onRestoreCandidate: (candidateId: number) => void;
-  onPermanentDeleteCandidate: (candidateId: number) => void;
+  onArchiveCandidate: (candidateId: string) => void;
+  onRestoreCandidate: (candidateId: string) => void;
+  onPermanentDeleteCandidate: (candidateId: string) => void;
   onInterviewScheduled: (candidate: Candidate, interviewDetails: CandidateInterview) => void;
-  onBulkInterviewScheduled: (candidateIds: number[], interviewDetails: Omit<CandidateInterview, 'notes'>) => void;
+  onBulkInterviewScheduled: (candidateIds: string[], interviewDetails: Omit<CandidateInterview, 'notes'>) => void;
 }
 
 type SortKey = 'finalScore' | 'name' | 'applicationDate';
@@ -640,7 +647,7 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const [isArchivedPanelOpen, setIsArchivedPanelOpen] = useState(false);
 
-  const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<number>>(new Set());
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<string>>(new Set());
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [screeningApplied, setScreeningApplied] = useState(false);
 
@@ -821,7 +828,7 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
         URL.revokeObjectURL(url);
     };
 
-    const handleSelectCandidate = (candidateId: number) => {
+    const handleSelectCandidate = (candidateId: string) => {
         setSelectedCandidateIds(prev => {
             const newSet = new Set(prev);
             if (newSet.has(candidateId)) {
@@ -1064,12 +1071,6 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
                    <FilterButton label="Aprovados" count={statusCounts.approved} isActive={statusFilter === 'approved'} onClick={() => setStatusFilter('approved')} />
                    <FilterButton label="Rejeitados" count={statusCounts.rejected} isActive={statusFilter === 'rejected'} onClick={() => setStatusFilter('rejected')} />
                    <FilterButton label="Inscritos" count={statusCounts.applied} isActive={statusFilter === 'applied'} onClick={() => setStatusFilter('applied')} />
-                   <FilterButton 
-                        label="Portal de Carreiras" 
-                        count={scoredCandidates.filter(c => c.source === 'Portal de Carreiras').length} 
-                        isActive={sourceFilter === 'portal'} 
-                        onClick={() => setSourceFilter(prev => prev === 'portal' ? 'all' : 'portal')} 
-                    />
                </div>
                <div className="flex gap-2 items-center flex-wrap">
                     <label className="text-sm font-semibold text-light-text-secondary dark:text-text-secondary">Ordenar por:</label>

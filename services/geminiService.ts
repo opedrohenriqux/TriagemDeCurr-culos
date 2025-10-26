@@ -421,13 +421,31 @@ export const analyzeResumeWithAI = async (resumeDataUrl: string): Promise<string
 
         // Send text to Gemini for analysis
         const prompt = `
-            Analise o seguinte texto extraído de um currículo e forneça um resumo conciso e bem estruturado.
+            Analise o seguinte texto extraído de um currículo para um recrutador do restaurante Lacoste Burger e forneça uma análise detalhada e estruturada em Markdown.
 
-            O resumo deve destacar:
-            1.  As principais áreas de experiência profissional.
-            2.  As competências e habilidades mais relevantes mencionadas.
-            3.  A formação acadêmica.
-            4.  Qualquer outra informação que pareça crucial para um recrutador.
+            **Instruções de Formatação:**
+            - Use títulos principais em negrito (ex: **Soft Skills**).
+            - Use listas com marcadores (-) para detalhar cada item.
+            - A linguagem deve ser profissional e direta.
+
+            **A análise DEVE conter as seguintes seções, nesta ordem:**
+
+            1.  **Soft Skills:**
+                - Identifique e liste as principais competências comportamentais do candidato (ex: comunicação, trabalho em equipe, liderança, proatividade).
+
+            2.  **Hard Skills:**
+                - Identifique e liste as principais competências técnicas (ex: fluência em idiomas, conhecimento em softwares específicos, experiência com maquinário de cozinha, etc.).
+
+            3.  **Fit Cultural:**
+                - Com base nas experiências e na forma como o candidato se descreve, avalie o potencial de alinhamento com um ambiente de restaurante (dinâmico, focado no cliente, colaborativo). Destaque pontos que sugiram um bom ou mau alinhamento.
+
+            4.  **Pontos de Atenção (Red Flags):**
+                - Identifique e liste possíveis pontos que merecem atenção ou aprofundamento na entrevista. Isso pode incluir:
+                    - Períodos curtos em empregos anteriores.
+                    - Lacunas de tempo não explicadas no currículo.
+                    - Falta de experiência relevante para a área de restaurantes.
+                    - Objetivos de carreira que parecem desalinhados com a vaga.
+                    - Qualquer outra informação que pareça inconsistente.
 
             Texto do Currículo:
             ---

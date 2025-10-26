@@ -1,12 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { USERS } from '../../constants';
 import { Candidate, Message, User, CandidateStatus, Job, Dynamic } from '../../types';
 import MessagingPanel from '../messaging/MessagingPanel';
 import CandidateDynamicsView from './CandidateDynamicsView';
 
 interface ApplicationFormProps {
     onSwitchToLogin: () => void;
-    onAddCandidate: (formData: any) => number;
+    onAddCandidate: (formData: any) => Promise<string>;
     candidates: Candidate[];
     users: User[];
     jobs: Job[];
@@ -77,10 +76,11 @@ const ApplicationForm: React.FC<ApplicationFormProps> = (props) => {
     const [resumeDataUrl, setResumeDataUrl] = useState<string | null>(null);
     const [resumeFileName, setResumeFileName] = useState('');
     const [lgpdConsent, setLgpdConsent] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [view, setView] = useState<'form' | 'success' | 'status_check' | 'status_display'>('form');
     const [candidateView, setCandidateView] = useState<'dashboard' | 'dynamics'>('dashboard');
-    const [submittedCandidateId, setSubmittedCandidateId] = useState<number | null>(null);
+    const [submittedCandidateId, setSubmittedCandidateId] = useState<string | null>(null);
     const [statusCheckId, setStatusCheckId] = useState('');
     const [statusCandidate, setStatusCandidate] = useState<Candidate | null>(null);
     const [statusError, setStatusError] = useState('');
@@ -93,39 +93,26 @@ const ApplicationForm: React.FC<ApplicationFormProps> = (props) => {
     
     const [liveMessages, setLiveMessages] = useState<Message[]>(messages);
 
-    // This useEffect ensures the local message state is always in sync with the parent state (App.tsx).
-    // This is crucial for the unidirectional data flow to work correctly.
     useEffect(() => {
         setLiveMessages(messages);
     }, [messages]);
 
+    useEffect(() => {
+        // Ensure the form's jobId is synced when jobs load
+        if (activeJobs.length > 0 && !formData.jobId) {
+            setFormData(prev => ({ ...prev, jobId: activeJobs[0].id }));
+        }
+    }, [activeJobs, formData.jobId]);
+
 
     useEffect(() => {
         if (!statusCandidate) return;
-
-        const intervalId = setInterval(() => {
-            try {
-                const storedMessages = window.localStorage.getItem('lacoste-messages');
-                if (storedMessages) {
-                    const parsedMessages: Message[] = JSON.parse(storedMessages);
-                    if (parsedMessages.length !== liveMessages.length) {
-                        setLiveMessages(parsedMessages);
-                    }
-                }
-            } catch (error) {
-                console.error("Error polling for messages:", error);
-            }
-        }, 3000); // Poll every 3 seconds
-
-        return () => clearInterval(intervalId);
-    }, [statusCandidate, liveMessages.length]);
+        // The data is now live from Firestore, no need to poll localStorage
+    }, [statusCandidate]);
 
     const handleCandidateSendMessage = (receiverId: string, text: string) => {
         if (!statusCandidate) return;
         const senderId = `candidate-${statusCandidate.id}`;
-        // The child component calls this function, which in turn calls the parent's (App.tsx) function.
-        // This ensures the message is added to the central source of truth (localStorage via useLocalStorage hook)
-        // and the change propagates down correctly to all components.
         onSendMessage(senderId, receiverId, text);
     };
 
@@ -208,12 +195,23 @@ const ApplicationForm: React.FC<ApplicationFormProps> = (props) => {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const newId = onAddCandidate({ ...formData, resumeFile: resumeDataUrl });
-        setSubmittedCandidateId(newId);
-        setView('success');
-        window.scrollTo(0, 0);
+        if (isSubmitting) return;
+
+        setIsSubmitting(true);
+        try {
+            const newId = await onAddCandidate({ ...formData, resumeUrl: resumeDataUrl });
+            setSubmittedCandidateId(newId);
+            setView('success');
+            window.scrollTo(0, 0);
+        } catch (error: any) {
+            console.error("Failed to submit application:", error);
+            const errorMessage = `Ocorreu um erro ao enviar sua inscrição. Por favor, tente novamente.\n\nDetalhes do erro: ${error.message || 'Erro desconhecido.'}`;
+            alert(errorMessage);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
     
     const handleStatusCheckSubmit = (e: React.FormEvent) => {
@@ -488,7 +486,19 @@ const ApplicationForm: React.FC<ApplicationFormProps> = (props) => {
             <div><label className={labelClass}>Qual período você tem disponibilidade?*</label><div className="flex flex-wrap gap-x-6 gap-y-2 mt-2"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" value="Manhã" onChange={handleAvailabilityChange} checked={formData.availability.includes('Manhã')} className={radioCheckboxClass} /> Manhã</label><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" value="Tarde" onChange={handleAvailabilityChange} checked={formData.availability.includes('Tarde')} className={radioCheckboxClass} /> Tarde</label><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" value="Noite" onChange={handleAvailabilityChange} checked={formData.availability.includes('Noite')} className={radioCheckboxClass} /> Noite</label><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" value="Período Integral" onChange={handleAvailabilityChange} checked={formData.availability.includes('Período Integral')} className={radioCheckboxClass} /> Período Integral</label></div></div>
             <div><label htmlFor="fiveYearPlan" className={labelClass}>Como se imagina daqui a 5 anos?*</label><textarea id="fiveYearPlan" name="fiveYearPlan" rows={4} value={formData.fiveYearPlan} onChange={handleChange} required className={formFieldClass}></textarea></div>
             <div><label htmlFor="resumeFile" className={labelClass}>Anexar Currículo (Opcional, máx 5MB)</label><div className="mt-1 flex items-center gap-3"><label htmlFor="resumeFile" className="cursor-pointer bg-light-background dark:bg-background border border-light-border dark:border-border rounded-md px-4 py-2 text-sm font-semibold text-light-text-secondary dark:text-text-secondary hover:bg-light-border dark:hover:bg-border">Escolher Arquivo</label><input type="file" id="resumeFile" name="resumeFile" className="sr-only" onChange={handleFileChange} accept=".pdf,.doc,.docx" />{resumeFileName && <span className="text-sm text-light-text-secondary dark:text-text-secondary truncate max-w-xs">{resumeFileName}</span>}</div></div>
-            <div className="pt-4 border-t border-light-border dark:border-border"><div className="space-y-3"><p className="text-xs text-light-text-secondary dark:text-text-secondary">Ao se inscrever, você concorda com a nossa Política de Privacidade e com a Lei Geral de Proteção de Dados (LGPD). Seus dados permanecerão em nosso banco de talentos pelo período de 12 meses para futuras análises e oportunidades.</p><label className="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" checked={lgpdConsent} onChange={(e) => setLgpdConsent(e.target.checked)} required className={radioCheckboxClass} /> Li e concordo com os termos.*</label></div><button type="submit" disabled={!lgpdConsent || activeJobs.length === 0} className="w-full mt-4 bg-light-primary dark:bg-primary text-white font-bold py-3 rounded-lg hover:bg-light-primary-hover dark:hover:bg-primary-hover transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed">Enviar Inscrição</button></div>
+            <div className="pt-4 border-t border-light-border dark:border-border"><div className="space-y-3"><p className="text-xs text-light-text-secondary dark:text-text-secondary">Ao se inscrever, você concorda com a nossa Política de Privacidade e com a Lei Geral de Proteção de Dados (LGPD). Seus dados permanecerão em nosso banco de talentos pelo período de 12 meses para futuras análises e oportunidades.</p><label className="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" checked={lgpdConsent} onChange={(e) => setLgpdConsent(e.target.checked)} required className={radioCheckboxClass} /> Li e concordo com os termos.*</label></div><button type="submit" disabled={!lgpdConsent || activeJobs.length === 0 || isSubmitting} className="w-full mt-4 bg-light-primary dark:bg-primary text-white font-bold py-3 rounded-lg hover:bg-light-primary-hover dark:hover:bg-primary-hover transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center">
+                 {isSubmitting ? (
+                    <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Enviando...
+                    </>
+                ) : (
+                    'Enviar Inscrição'
+                )}
+                </button></div>
         </form>
     );
 

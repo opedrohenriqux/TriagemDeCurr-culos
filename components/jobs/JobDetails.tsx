@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Candidate, AIAnalysis, Job, CandidateStatus, Resume, CandidateInterview, User } from '../../types';
 import InterviewSchedulerModal from '../schedules/InterviewSchedulerModal';
 import BulkInterviewSchedulerModal from '../schedules/BulkInterviewSchedulerModal';
-import { analyzeCandidateWithAI } from '../../services/geminiService';
+import { analyzeCandidateWithAI, analyzeResumeWithAI } from '../../services/geminiService';
 import InitialsAvatar from '../common/InitialsAvatar';
 import Pagination from '../common/Pagination';
 
@@ -82,9 +82,9 @@ interface CandidateCardProps {
   candidate: any; // Using any to accommodate processed fields
   onOpenProfile: (candidate: Candidate) => void;
   analysis?: AIAnalysis | null;
-  onArchive: (candidateId: number) => void;
+  onArchive: (candidateId: string) => void;
   onScheduleInterview: (candidate: Candidate) => void;
-  onSelect: (id: number) => void;
+  onSelect: (id: string) => void;
   isSelected: boolean;
 }
 
@@ -251,7 +251,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ candidate, onClose }) => {
                     {/* Personal Info */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center bg-light-background dark:bg-background p-4 rounded-lg">
                         <div><strong className="block text-light-text-secondary dark:text-text-secondary text-sm">Idade</strong>{candidate.age} anos</div>
-                        <div><strong className="block text-light-text-secondary dark:text-text-secondary text-sm">Cidade</strong>{candidate.location.split('(')[0]}</div>
+                        <div><strong className="block text-light-text-secondary dark:text-text-secondary text-sm">Cidade</strong>{candidate.location ? candidate.location.split('(')[0] : 'Não informada'}</div>
                         <div><strong className="block text-light-text-secondary dark:text-text-secondary text-sm">Estado Civil</strong>{candidate.maritalStatus}</div>
                         <div><strong className="block text-light-text-secondary dark:text-text-secondary text-sm">Escolaridade</strong>{candidate.education}</div>
                     </div>
@@ -325,7 +325,6 @@ interface ProfileModalProps {
     candidate: Candidate;
     jobTitle: string;
     onClose: () => void;
-    onAnalysisComplete: (candidateId: number, analysis: AIAnalysis) => void;
     onUpdateCandidate: (candidate: Candidate) => void;
     onViewResume: () => void;
     onArchiveCandidate: (candidateId: number) => void;
@@ -333,8 +332,29 @@ interface ProfileModalProps {
 
 const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClose, onAnalysisComplete, onUpdateCandidate, onViewResume, onArchiveCandidate }) => {
     const [isLoading, setIsLoading] = useState(false);
-    const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
+    const [analysis, setAnalysis] = useState<AIAnalysis | null>(candidate.aiAnalysis || null);
     const [error, setError] = useState<string | null>(null);
+    const [isAnalyzingResume, setIsAnalyzingResume] = useState(false);
+    const [resumeAnalysisResult, setResumeAnalysisResult] = useState<string | null>(null);
+
+    const handleResumeAnalysis = async () => {
+        if (!candidate.resumeUrl) return;
+
+        setIsAnalyzingResume(true);
+        setResumeAnalysisResult(null);
+        setError(null);
+
+        const result = await analyzeResumeWithAI(candidate.resumeUrl);
+
+        if (result) {
+            setResumeAnalysisResult(result);
+        } else {
+            setError("Falha ao analisar o currículo.");
+            setResumeAnalysisResult("Ocorreu um erro durante a análise. Por favor, tente novamente.");
+        }
+
+        setIsAnalyzingResume(false);
+    };
 
     const handleAnalyze = async () => {
         setIsLoading(true);
@@ -345,7 +365,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
         
         if (result) {
             setAnalysis(result);
-            onAnalysisComplete(candidate.id, result);
+            onUpdateCandidate({ ...candidate, aiAnalysis: result });
         } else {
             setError("Não foi possível concluir a análise. Verifique sua conexão ou a configuração da API e tente novamente.");
         }
@@ -382,7 +402,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
                                 <p className="text-light-text-secondary dark:text-text-secondary">{candidate.location}</p>
                                 <div className="mt-3 flex items-center gap-4">
                                     <button type="button" onClick={onViewResume} className="text-sm text-light-primary dark:text-primary font-semibold hover:text-light-primary-hover dark:hover:text-primary-hover">
-                                        Visualizar Currículo Completo
+                                        Visualizar Informações
                                     </button>
                                      {candidate.resumeUrl && (
                                         <a
@@ -469,6 +489,28 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
                                     <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Resumo da IA</h5>
                                     <p className="text-sm text-light-text-secondary dark:text-text-secondary">{analysis.summary}</p>
                                 </div>
+                                {analysis.locationAnalysis && (
+                                    <div>
+                                        <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Análise de Localização</h5>
+                                        <p className="text-sm text-light-text-secondary dark:text-text-secondary">{analysis.locationAnalysis}</p>
+                                        <div className="flex justify-around mt-2 text-center">
+                                            <div>
+                                                <p className="font-bold text-light-primary dark:text-primary">{analysis.estimatedDistance || 'N/A'}</p>
+                                                <p className="text-xs text-light-text-secondary dark:text-text-secondary">Distância Estimada</p>
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-light-primary dark:text-primary">{analysis.monthlyCommuteCost || 'N/A'}</p>
+                                                <p className="text-xs text-light-text-secondary dark:text-text-secondary">Custo Mensal Estimado</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                {resumeAnalysisResult && (
+                                    <div>
+                                        <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Análise de Currículo</h5>
+                                        <p className="text-sm text-light-text-secondary dark:text-text-secondary whitespace-pre-wrap">{resumeAnalysisResult}</p>
+                                    </div>
+                                )}
                                 <div>
                                     <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Pontos Fortes</h5>
                                     <ul className="list-disc list-inside text-sm text-light-text-secondary dark:text-text-secondary">
@@ -480,6 +522,22 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
                                     <ul className="list-disc list-inside text-sm text-light-text-secondary dark:text-text-secondary">
                                         {analysis.weaknesses.map((w,i) => <li key={i}>{w}</li>)}
                                     </ul>
+                                </div>
+                                <div>
+                                    <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Hard Skills</h5>
+                                    <ul className="list-disc list-inside text-sm text-light-text-secondary dark:text-text-secondary">
+                                        {analysis.hardSkills?.map((s,i) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Soft Skills</h5>
+                                    <ul className="list-disc list-inside text-sm text-light-text-secondary dark:text-text-secondary">
+                                        {analysis.softSkills?.map((s,i) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h5 className="font-semibold text-light-text-primary dark:text-text-primary">Fit Cultural</h5>
+                                    <p className="text-sm text-light-text-secondary dark:text-text-secondary">{analysis.culturalFit}</p>
                                 </div>
                                  {analysis.interviewQuestions && analysis.interviewQuestions.length > 0 && (
                                     <div>
@@ -498,6 +556,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ candidate, jobTitle, onClos
                     </div>
                 </div>
                  <div className="p-4 border-t border-light-border dark:border-border flex justify-end gap-2 flex-shrink-0">
+                    <button
+                        type="button"
+                        onClick={handleResumeAnalysis}
+                        disabled={!candidate.resumeUrl || isAnalyzingResume}
+                        className="bg-blue-400/20 text-blue-600 dark:bg-blue-600/20 dark:text-blue-400 font-bold px-4 py-2 rounded-lg hover:bg-blue-400/40 dark:hover:bg-blue-600/40 transition-colors text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isAnalyzingResume ? <Spinner /> : null}
+                        Análise de Currículo
+                    </button>
                     <button 
                         type="button"
                         onClick={() => { onArchiveCandidate(candidate.id); onClose(); }} 
@@ -1110,7 +1177,6 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
             candidate={selectedCandidate} 
             jobTitle={job.title} 
             onClose={() => setSelectedCandidate(null)}
-            onAnalysisComplete={handleAnalysisComplete}
             onUpdateCandidate={onUpdateCandidate}
             onViewResume={() => setIsResumeModalOpen(true)}
             onArchiveCandidate={onArchiveCandidate}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Header from './Header';
-import { User, Job, Candidate, Talent, CandidateInterview, Message, HistoryEvent, Dynamic, ActiveDynamicTimer } from '../../types';
+import { User, Job, Candidate, Talent, CandidateInterview, Message, HistoryEvent, Dynamic, DynamicTimer } from '../../types';
 
 // Import views
 import JobList from '../jobs/JobList';
@@ -15,6 +15,7 @@ import ReportsView from '../reports/ReportsView';
 import DevsView from '../devs/DevsView';
 import HiresView from '../hires/HiresView';
 import HistoryView from '../history/HistoryView';
+import ErrorBoundary from '../common/ErrorBoundary';
 
 
 export type View = 'vagas' | 'talentos' | 'assistencia' | 'dashboard' | 'relatorios' | 'entrevistas' | 'contratacoes' | 'arquivo' | 'admin' | 'devs' | 'historico';
@@ -36,11 +37,11 @@ interface MainLayoutProps {
   archivedConversations: Set<string>;
   dynamics: Dynamic[];
   syncStatus: 'idle' | 'syncing' | 'saved' | 'error';
-  activeDynamicTimer: ActiveDynamicTimer | null;
+  dynamicTimers: DynamicTimer[];
   onOpenMessaging: (candidateId?: number | null) => void;
   onCloseMessaging: () => void;
   onSendMessage: (senderId: string, receiverId: string, text: string) => void;
-  onUpdateMessage: (messageId: number, newText: string, isDeleted?: boolean) => void;
+  onUpdateMessage: (messageId: string, newText: string, isDeleted?: boolean) => void;
   onMarkMessagesAsRead: (senderId: string, receiverId: string) => void;
   onDeleteConversation: (partnerId: string) => void;
   onArchiveConversation: (partnerId: string) => void;
@@ -50,24 +51,24 @@ interface MainLayoutProps {
   onArchiveJob: (jobId: string) => void;
   onRestoreJob: (jobId: string) => void;
   onDeleteJob: (jobId: string) => void;
-  onUpdateCandidate: (candidate: Candidate) => void;
+  onUpdateCandidate: (candidate: Candidate, oldStatus?: Candidate['status']) => void;
   onBulkUpdateCandidates: (updatedCandidates: Candidate[]) => void;
-  onArchiveCandidate: (candidateId: number) => void;
-  onRestoreCandidate: (candidateId: number) => void;
-  onPermanentDeleteCandidate: (candidateId: number) => void;
+  onArchiveCandidate: (candidateId: string) => void;
+  onRestoreCandidate: (candidateId: string) => void;
+  onPermanentDeleteCandidate: (candidateId: string) => void;
   onInterviewScheduled: (candidate: Candidate, interviewDetails: CandidateInterview) => void;
-  onBulkInterviewScheduled: (candidateIds: number[], interviewDetails: Omit<CandidateInterview, 'notes'>) => void;
-  onBulkCancelInterviews: (candidateIds: number[]) => void;
+  onBulkInterviewScheduled: (candidateIds: string[], interviewDetails: Omit<CandidateInterview, 'notes'>) => void;
+  onBulkCancelInterviews: (candidateIds: string[]) => void;
   onAddTalent: (talent: Omit<Talent, 'id'>) => void;
   onUpdateTalent: (talent: Talent) => void;
-  onArchiveTalent: (talentId: number) => void;
-  onRestoreTalent: (talentId: number) => void;
-  onDeleteTalent: (talentId: number) => void;
-  onSendTalentToJob: (talentId: number, jobId: string) => void;
+  onArchiveTalent: (talentId: string) => void;
+  onRestoreTalent: (talentId: string) => void;
+  onDeleteTalent: (talentId: string) => void;
+  onSendTalentToJob: (talentId: string, jobId: string) => void;
   onAddUser: (user: Omit<User, 'id' | 'role'> & { password?: string }) => void;
-  onRemoveUser: (userId: number) => void;
+  onRemoveUser: (userId: string) => void;
   onUpdateUser: (user: User) => void;
-  onToggleAdminRole: (userId: number) => void;
+  onToggleAdminRole: (userId: string) => void;
   onRestoreAll: () => void;
   onDeleteAllPermanently: () => void;
   onAddDynamic: (dynamic: Omit<Dynamic, 'id'>) => void;
@@ -156,7 +157,7 @@ const MainLayout: React.FC<MainLayoutProps> = (props) => {
             onAddDynamic={props.onAddDynamic}
             onUpdateDynamic={props.onUpdateDynamic}
             onDeleteDynamic={props.onDeleteDynamic}
-            activeDynamicTimer={props.activeDynamicTimer}
+            dynamicTimers={props.dynamicTimers}
             onStartDynamicTimer={props.onStartDynamicTimer}
             onPauseDynamicTimer={props.onPauseDynamicTimer}
             onResumeDynamicTimer={props.onResumeDynamicTimer}
@@ -231,7 +232,9 @@ const MainLayout: React.FC<MainLayoutProps> = (props) => {
         key={props.activeView} 
         className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in-up"
       >
-        {renderContent()}
+        <ErrorBoundary fallbackMessage="Ocorreu um erro ao carregar esta visualização.">
+          {renderContent()}
+        </ErrorBoundary>
       </main>
     </div>
   );

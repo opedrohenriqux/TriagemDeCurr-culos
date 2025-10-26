@@ -1,35 +1,47 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { Candidate, AIAnalysis, Job, User, Message } from '../types';
 
-// FIX: Per coding guidelines, API key must be read directly from process.env when initializing the client.
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY não foi encontrada. Por favor, configure a variável de ambiente.");
+let ai: GoogleGenAI | null = null;
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+if (apiKey) {
+  ai = new GoogleGenAI({ apiKey });
+} else {
+  console.warn("VITE_GEMINI_API_KEY não foi encontrada. As funcionalidades de IA serão desativadas.");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const analyzeCandidateWithAI = async (candidate: Candidate, jobTitle: string): Promise<AIAnalysis | null> => {
+  if (!ai) return null;
+
   const prompt = `
     Análise de Candidato para a vaga de ${jobTitle} no restaurante Lacoste Burger.
 
     Dados do Candidato:
     - Nome: ${candidate.name}
     - Idade: ${candidate.age}
+    - Localização: ${candidate.location}
     - Experiência: ${candidate.experience}
     - Educação: ${candidate.education}
     - Habilidades: ${candidate.skills.join(', ')}
     - Resumo: ${candidate.summary}
 
-    Com base nos dados fornecidos, realize a seguinte análise aprofundada e retorne um JSON:
+    Com base nos dados fornecidos, realize a seguinte análise aprofundada e retorne um JSON.
+    NÃO use formatação Markdown (como "**") no texto.
+
     1.  **summary**: Um resumo conciso e detalhado do perfil do candidato, destacando sua adequação para a vaga e mencionando potenciais pontos de atenção.
     2.  **strengths**: Uma lista (array de strings) com os 3 principais pontos fortes do candidato para esta vaga.
     3.  **weaknesses**: Uma lista (array de strings) com os 2 principais pontos a serem desenvolvidos ou que representam menor aderência à vaga.
-    4.  **fitScore**: Um score de 0 a 10, onde 10 é o ajuste perfeito, representando a compatibilidade do candidato com a vaga de ${jobTitle}.
-    5.  **interviewQuestions**: Uma lista (array de strings) com 3 perguntas de entrevista inteligentes e personalizadas, baseadas especificamente nas habilidades e na experiência (ou falta dela) do candidato, para aprofundar a avaliação.
+    4.  **hardSkills**: Uma lista (array de strings) das principais habilidades técnicas (hard skills) do candidato.
+    5.  **softSkills**: Uma lista (array de strings) das principais habilidades comportamentais (soft skills) do candidato.
+    6.  **culturalFit**: Uma análise de uma frase sobre o alinhamento do candidato com os valores da empresa: "dar o melhor sempre" e "buscar evolução fornecendo melhor qualidade".
+    7.  **fitScore**: Um score de 0 a 10, onde 10 é o ajuste perfeito, representando a compatibilidade do candidato com a vaga de ${jobTitle}.
+    8.  **interviewQuestions**: Uma lista (array de strings) com 3 perguntas de entrevista inteligentes e personalizadas.
+    9.  **locationAnalysis**: Uma análise sobre a localização do candidato. Estime a distância em KM do bairro/cidade fornecido até o "Shopping Dom Pedro, Campinas, SP".
+    10. **estimatedDistance**: Uma string com a distância estimada (ex: "Aproximadamente 15 km").
+    11. **monthlyCommuteCost**: Uma estimativa do custo mensal de transporte público (ônibus) para o trajeto diário de ida e volta, considerando 22 dias úteis (ex: "R$ 250,00").
   `;
 
   try {
-    // FIX: Per coding guidelines, ai.models.generateContent must be called directly.
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -51,9 +63,15 @@ export const analyzeCandidateWithAI = async (candidate: Candidate, jobTitle: str
             interviewQuestions: {
               type: Type.ARRAY,
               items: { type: Type.STRING }
-            }
+            },
+            locationAnalysis: { type: Type.STRING },
+            estimatedDistance: { type: Type.STRING },
+            monthlyCommuteCost: { type: Type.STRING },
+            hardSkills: { type: Type.ARRAY, items: { type: Type.STRING } },
+            softSkills: { type: Type.ARRAY, items: { type: Type.STRING } },
+            culturalFit: { type: Type.STRING }
           },
-          required: ['summary', 'strengths', 'weaknesses', 'fitScore', 'interviewQuestions']
+          required: ['summary', 'strengths', 'weaknesses', 'fitScore', 'interviewQuestions', 'locationAnalysis', 'estimatedDistance', 'monthlyCommuteCost', 'hardSkills', 'softSkills', 'culturalFit']
         }
       }
     });
@@ -69,6 +87,8 @@ export const analyzeCandidateWithAI = async (candidate: Candidate, jobTitle: str
 };
 
 export const getDecisionSupportSummary = async (candidate: Candidate, job: Job, feedbackNotes: string, dynamicNotes?: string): Promise<string | null> => {
+  if (!ai) return null;
+
   const dynamicNotesSection = dynamicNotes ? `
     **Anotações da Dinâmica de Grupo sobre o Candidato:**
     ---
@@ -108,7 +128,9 @@ export const getDecisionSupportSummary = async (candidate: Candidate, job: Job, 
 };
 
 
-export const summarizeInterviewFeedback = async (candidate: Candidate, job: Job, feedbackNotes: string, decision: 'offer' | 'rejected' | 'waitlist', dynamicNotes?: string): Promise<string | null> => {
+export const summarizeInterviewFeedback = async (candidate: Candidate, job: Job, decision: 'offer' | 'rejected' | 'waitlist', feedbackNotes?: string, dynamicNotes?: string): Promise<string | null> => {
+  if (!ai) return null;
+
   const decisionText = decision === 'offer' ? 'aprovado para a próxima fase (oferta)' : decision === 'rejected' ? 'rejeitado' : 'colocado em lista de espera';
   
   const dynamicNotesSection = dynamicNotes ? `
@@ -125,7 +147,7 @@ export const summarizeInterviewFeedback = async (candidate: Candidate, job: Job,
 
     **Anotações do Recrutador sobre a Entrevista Individual:**
     ---
-    ${feedbackNotes}
+    ${feedbackNotes || 'Nenhuma anotação fornecida.'}
     ---
     ${dynamicNotesSection}
     **Sua Tarefa:**
@@ -150,6 +172,8 @@ export const summarizeInterviewFeedback = async (candidate: Candidate, job: Job,
 };
 
 export const generateApprovalEmail = async (candidate: Candidate, job: Job): Promise<string | null> => {
+  if (!ai) return null;
+
   const prompt = `
     Escreva um e-mail profissional e amigável para o candidato "${candidate.name}" parabenizando-o por ter sido aprovado na fase de triagem inicial para a vaga de "${job.title}" no restaurante Lacoste Burger.
 
@@ -176,6 +200,8 @@ export const generateApprovalEmail = async (candidate: Candidate, job: Job): Pro
 };
 
 export const getAIResponseForChat = async (prompt: string, jobs: Job[], candidates: Candidate[]): Promise<string | null> => {
+  if (!ai) return "A funcionalidade de IA está temporariamente indisponível. A chave de API não foi configurada corretamente.";
+
   try {
     const simplifiedJobs = jobs.map(j => ({ id: j.id, title: j.title, department: j.department, status: j.status }));
     const simplifiedCandidates = candidates.map(c => ({ id: c.id, name: c.name, jobId: c.jobId, status: c.status, fitScore: c.fitScore?.toFixed(1) }));
@@ -292,6 +318,8 @@ export const getSuggestedReplies = async (
   job: Job,
   currentUser: User
 ): Promise<string[] | null> => {
+  if (!ai) return null;
+
   const lastFiveMessages = conversationHistory.slice(-5).map(m =>
     `${m.senderId.startsWith('user') ? currentUser.username : candidate.name}: ${m.text}`
   ).join('\n');
@@ -341,6 +369,8 @@ export const getSuggestedReplies = async (
 };
 
 export const generateInterviewInvitationMessage = async (candidateName: string): Promise<string | null> => {
+    if (!ai) return null;
+
     const prompt = `
         Gere uma mensagem curta, amigável e profissional para ser enviada via chat para o candidato "${candidateName}".
         A mensagem deve parabenizá-lo por ter sido aprovado na triagem inicial e convidá-lo para agendar uma entrevista, perguntando sobre sua disponibilidade de dias e horários.
@@ -355,5 +385,105 @@ export const generateInterviewInvitationMessage = async (candidateName: string):
     } catch (error) {
         console.error("Erro ao gerar mensagem de convite com IA:", error);
         return null;
+    }
+};
+
+export const analyzeResumeWithAI = async (resumeDataUrl: string): Promise<string | null> => {
+    if (!ai) return "A funcionalidade de IA está desativada.";
+
+    try {
+        const pdfjsLib = await import('pdfjs-dist');
+
+        // Construct the worker URL in a way that Vite can handle
+        const workerUrl = new URL(
+            'pdfjs-dist/build/pdf.worker.min.mjs',
+            import.meta.url
+        );
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl.toString();
+
+        // Convert data URL to ArrayBuffer
+        const base64 = resumeDataUrl.split(',')[1];
+        const binaryString = window.atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        const arrayBuffer = bytes.buffer;
+
+        // Load PDF and extract text
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            fullText += textContent.items.map(item => item.str).join(' ') + '\n';
+        }
+
+        if (!fullText.trim()) {
+            return "Não foi possível extrair texto do currículo. O arquivo pode estar em branco ou ser uma imagem.";
+        }
+
+        // Send text to Gemini for analysis
+        const prompt = `
+            Analise o seguinte texto extraído de um currículo e forneça um resumo conciso e bem estruturado.
+
+            O resumo deve destacar:
+            1.  As principais áreas de experiência profissional.
+            2.  As competências e habilidades mais relevantes mencionadas.
+            3.  A formação acadêmica.
+            4.  Qualquer outra informação que pareça crucial para um recrutador.
+
+            Texto do Currículo:
+            ---
+            ${fullText}
+            ---
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        return response.text.trim();
+
+    } catch (error) {
+        console.error("Erro ao analisar o currículo com IA:", error);
+        if (error instanceof Error && error.message.includes('Invalid PDF structure')) {
+            return "Erro: O arquivo fornecido não parece ser um PDF válido.";
+        }
+        return "Ocorreu um erro inesperado durante a análise do currículo.";
+    }
+};
+
+export const analyzeGroupSummaryWithAI = async (summaryText: string): Promise<string | null> => {
+    if (!ai) return "A funcionalidade de IA está desativada.";
+
+    const prompt = `
+        **Contexto:** Você é um especialista em análise de texto e detecção de plágio para um processo de recrutamento.
+        **Tarefa:** Analise o resumo de grupo a seguir, que foi criado como parte de uma dinâmica.
+
+        **Resumo do Grupo:**
+        ---
+        ${summaryText}
+        ---
+
+        **Sua Análise Deve Conter:**
+        1.  **Análise de Originalidade:** Comente sobre a originalidade das ideias apresentadas. O texto parece genérico ou demonstra um pensamento crítico e criativo?
+        2.  **Verificação de Plágio:** Avalie a probabilidade do texto ser copiado da internet. Ele usa uma linguagem muito formal, clichês ou frases que são comumente encontradas online? Forneça uma classificação de "Baixa", "Média" ou "Alta" probabilidade de plágio.
+        3.  **Qualidade da Conclusão:** Avalie a clareza, a coesão e a profundidade das conclusões do grupo. Elas são bem fundamentadas?
+
+        O resultado deve ser um parágrafo de análise conciso.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        return response.text.trim();
+    } catch (error) {
+        console.error("Erro ao analisar resumo do grupo com IA:", error);
+        return "Ocorreu um erro ao tentar analisar o resumo.";
     }
 };

@@ -421,13 +421,18 @@ export const analyzeResumeWithAI = async (resumeDataUrl: string): Promise<string
 
         // Send text to Gemini for analysis
         const prompt = `
-            Analise o seguinte texto extraído de um currículo e forneça um resumo conciso e bem estruturado.
+            Analise o seguinte texto extraído de um currículo e forneça um resumo conciso e bem estruturado em Markdown.
 
-            O resumo deve destacar:
-            1.  As principais áreas de experiência profissional.
-            2.  As competências e habilidades mais relevantes mencionadas.
-            3.  A formação acadêmica.
-            4.  Qualquer outra informação que pareça crucial para um recrutador.
+            **Instruções de Formatação:**
+            - Use títulos em negrito (ex: **Experiência Profissional**).
+            - Use listas com marcadores (-) para detalhar itens.
+            - Seja objetivo e claro.
+
+            **O resumo deve destacar:**
+            1.  **Experiência Profissional**: Liste as experiências mais relevantes com cargo, empresa e período.
+            2.  **Competências e Habilidades**: Liste as habilidades técnicas e comportamentais mais importantes.
+            3.  **Formação Acadêmica**: Descreva a formação do candidato.
+            4.  **Observações Gerais**: Mencione qualquer outra informação crucial para um recrutador.
 
             Texto do Currículo:
             ---

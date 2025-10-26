@@ -164,6 +164,7 @@ export interface AIAnalysis {
     weaknesses: string[];
     fitScore: number;
     interviewQuestions: string[];
+    resumeAnalysis?: string;
 }
 
 export interface ChatMessage {

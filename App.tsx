@@ -308,7 +308,7 @@ function App() {
         }))
         .filter(course => course.name || course.institution);
 
-    const newCandidateData: Omit<Candidate, 'id'> = {
+    const newCandidateData: Omit<Candidate, 'id'> & { resumeUrl?: string } = {
         name: formData.name.trim(),
         age: parseInt(formData.age, 10) || 0,
         maritalStatus: formData.maritalStatus || 'Não informado',
@@ -325,7 +325,6 @@ function App() {
         applicationDate: new Date().toISOString(),
         source: 'Portal de Carreiras',
         isArchived: false,
-        resumeUrl: formData.resumeFile || undefined,
         resume: {
             professionalExperience: experiences,
             courses: courses,
@@ -340,6 +339,10 @@ function App() {
             fiveYearPlan: (formData.fiveYearPlan || '').trim(),
         }
     };
+
+    if (formData.resumeFile) {
+        newCandidateData.resumeUrl = formData.resumeFile;
+    }
 
     console.log("Preparing to create candidate with sanitized data:", newCandidateData);
     try {

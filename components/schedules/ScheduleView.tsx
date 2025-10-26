@@ -421,6 +421,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = (props) => {
                 <DynamicsView
                     dynamics={dynamics}
                     candidates={candidates}
+                    jobs={jobs}
                     onAddDynamic={onAddDynamic}
                     onUpdateDynamic={onUpdateDynamic}
                     onDeleteDynamic={onDeleteDynamic}

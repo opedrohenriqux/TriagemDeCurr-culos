@@ -2,6 +2,16 @@ import { db } from './firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { Job, Candidate, Talent, Message, HistoryEvent, Dynamic, User } from '../types';
 
+const sanitizeData = (data: any) => {
+    const sanitized: any = {};
+    for (const key in data) {
+        if (data[key] !== undefined) {
+            sanitized[key] = data[key];
+        }
+    }
+    return sanitized;
+};
+
 // Generic Firestore service to handle CRUD operations
 const createFirestoreService = <T>(collectionName: string) => {
   const collectionRef = collection(db, collectionName);
@@ -18,12 +28,14 @@ const createFirestoreService = <T>(collectionName: string) => {
       });
     },
     create: async (data: Omit<T, 'id'>): Promise<T> => {
-      const docRef = await addDoc(collectionRef, data);
-      return { id: docRef.id, ...data } as T;
+      const sanitizedData = sanitizeData(data);
+      const docRef = await addDoc(collectionRef, sanitizedData);
+      return { id: docRef.id, ...sanitizedData } as T;
     },
     update: async (id: string, data: Partial<T>): Promise<void> => {
+      const sanitizedData = sanitizeData(data);
       const docRef = doc(db, collectionName, id);
-      await updateDoc(docRef, data);
+      await updateDoc(docRef, sanitizedData);
     },
     set: async (id: string, data: T): Promise<void> => {
       const docRef = doc(db, collectionName, id);

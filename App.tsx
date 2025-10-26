@@ -680,21 +680,23 @@ function App() {
   };
 
   // Dynamics Management
-  const handleAddDynamic = (dynamicData: Omit<Dynamic, 'id'>) => {
-    const newDynamic: Dynamic = { ...dynamicData, id: `dyn-${Date.now()}` };
+  const handleAddDynamic = async (dynamicData: Omit<Dynamic, 'id'>) => {
+    const newDynamic = await dynamicService.create(dynamicData);
     setDynamics(prev => [newDynamic, ...prev]);
     logHistory('CREATE_DYNAMIC', `Criou a dinâmica '${newDynamic.title}'.`);
   };
 
-  const handleUpdateDynamic = (updatedDynamic: Dynamic) => {
+  const handleUpdateDynamic = async (updatedDynamic: Dynamic) => {
+    await dynamicService.update(updatedDynamic.id, updatedDynamic);
     setDynamics(prev => prev.map(d => d.id === updatedDynamic.id ? updatedDynamic : d));
     logHistory('UPDATE_DYNAMIC', `Atualizou a dinâmica '${updatedDynamic.title}'.`);
   };
 
-  const handleDeleteDynamic = (dynamicId: string) => {
+  const handleDeleteDynamic = async (dynamicId: string) => {
     const dynamicToDelete = dynamics.find(d => d.id === dynamicId);
-    setDynamics(prev => prev.filter(d => d.id !== dynamicId));
     if (dynamicToDelete) {
+        await dynamicService.delete(dynamicId);
+        setDynamics(prev => prev.filter(d => d.id !== dynamicId));
         logHistory('DELETE_DYNAMIC', `Excluiu a dinâmica '${dynamicToDelete.title}'.`);
     }
   };

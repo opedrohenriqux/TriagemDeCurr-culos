@@ -35,15 +35,17 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
     }
 
-    // TALENT POOL, HISTORY, DYNAMICS: Only admins can access.
+    // TALENT POOL, HISTORY: Only admins can access.
     match /talentPool/{talentId} {
       allow read, write: if isAdmin();
     }
     match /history/{eventId} {
       allow read, write: if isAdmin();
     }
+
+    // DYNAMICS: Any authenticated user can manage dynamics.
     match /dynamics/{dynamicId} {
-      allow read, write: if isAdmin();
+      allow read, write: if request.auth != null;
     }
 
     // MESSAGES: Only participants in the conversation can read or write.

@@ -2,6 +2,21 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Candidate, CandidateInterview, User, Job } from '../../types';
 import InitialsAvatar from '../common/InitialsAvatar';
 
+// Helper function for robust date handling
+const safeToISODate = (date: Date | string | null | undefined): string => {
+    if (!date) return new Date().toISOString().split('T')[0];
+    try {
+        const d = typeof date === 'string' ? new Date(date) : date;
+        if (isNaN(d.getTime())) {
+            throw new Error('Invalid date');
+        }
+        return d.toISOString().split('T')[0];
+    } catch (error) {
+        console.warn('safeToISODate failed, falling back to today:', error);
+        return new Date().toISOString().split('T')[0];
+    }
+};
+
 interface BulkInterviewSchedulerModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -91,7 +106,7 @@ const BulkInterviewSchedulerModal: React.FC<BulkInterviewSchedulerModalProps> = 
         const slots = new Set<string>();
         if (!selectedDate) return slots;
         
-        const selectedDateString = selectedDate.toISOString().split('T')[0];
+        const selectedDateString = safeToISODate(selectedDate);
 
         allCandidates.forEach(c => {
             if (c.interview && c.interview.date === selectedDateString) {
@@ -107,7 +122,7 @@ const BulkInterviewSchedulerModal: React.FC<BulkInterviewSchedulerModalProps> = 
             const initialDate = new Date();
             setSelectedDate(initialDate);
             setDetails({
-                date: initialDate.toISOString().split('T')[0], time: '', location: 'Online (Google Meet)', interviewers: []
+                date: safeToISODate(initialDate), time: '', location: 'Online (Google Meet)', interviewers: []
             });
 
             // --- Generate AI Suggestions for Slots ---
@@ -131,7 +146,7 @@ const BulkInterviewSchedulerModal: React.FC<BulkInterviewSchedulerModalProps> = 
                 if (checkDate < new Date()) { checkDate.setHours(checkDate.getHours() + 1); continue; }
                 
                 if (!bookedSlots.has(checkDate.toISOString())) {
-                    availableSlots.push({ date: checkDate.toISOString().split('T')[0], time: checkDate.toTimeString().substring(0, 5) });
+                    availableSlots.push({ date: safeToISODate(checkDate), time: checkDate.toTimeString().substring(0, 5) });
                 }
                 checkDate.setHours(checkDate.getHours() + 1);
             }
@@ -143,7 +158,7 @@ const BulkInterviewSchedulerModal: React.FC<BulkInterviewSchedulerModalProps> = 
 
     const handleDateSelect = (date: Date) => {
         setSelectedDate(date);
-        setDetails(prev => ({...prev, date: date.toISOString().split('T')[0], time: ''}));
+        setDetails(prev => ({ ...prev, date: safeToISODate(date), time: '' }));
     };
 
     const handleInterviewerToggle = (username: string) => {

@@ -63,7 +63,17 @@ export const analyzeCandidateWithAI = async (candidate: Candidate, jobTitle: str
 
     const jsonText = response.text.trim();
     const result = JSON.parse(jsonText);
-    return result as AIAnalysis;
+
+    // Limpa a formatação de asteriscos dos campos de texto
+    const cleanedResult: AIAnalysis = {
+      ...result,
+      summary: result.summary.replace(/\*\*/g, ''),
+      strengths: result.strengths.map((s: string) => s.replace(/\*\*/g, '')),
+      weaknesses: result.weaknesses.map((w: string) => w.replace(/\*\*/g, '')),
+      interviewQuestions: result.interviewQuestions.map((q: string) => q.replace(/\*\*/g, '')),
+    };
+
+    return cleanedResult;
 
   } catch (error) {
     console.error("Erro ao analisar candidato com IA:", error);

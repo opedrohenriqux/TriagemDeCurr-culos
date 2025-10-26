@@ -421,18 +421,31 @@ export const analyzeResumeWithAI = async (resumeDataUrl: string): Promise<string
 
         // Send text to Gemini for analysis
         const prompt = `
-            Analise o seguinte texto extraído de um currículo e forneça um resumo conciso e bem estruturado em Markdown.
+            Analise o seguinte texto extraído de um currículo para um recrutador do restaurante Lacoste Burger e forneça uma análise detalhada e estruturada em Markdown.
 
             **Instruções de Formatação:**
-            - Use títulos em negrito (ex: **Experiência Profissional**).
-            - Use listas com marcadores (-) para detalhar itens.
-            - Seja objetivo e claro.
+            - Use títulos principais em negrito (ex: **Soft Skills**).
+            - Use listas com marcadores (-) para detalhar cada item.
+            - A linguagem deve ser profissional e direta.
 
-            **O resumo deve destacar:**
-            1.  **Experiência Profissional**: Liste as experiências mais relevantes com cargo, empresa e período.
-            2.  **Competências e Habilidades**: Liste as habilidades técnicas e comportamentais mais importantes.
-            3.  **Formação Acadêmica**: Descreva a formação do candidato.
-            4.  **Observações Gerais**: Mencione qualquer outra informação crucial para um recrutador.
+            **A análise DEVE conter as seguintes seções, nesta ordem:**
+
+            1.  **Soft Skills:**
+                - Identifique e liste as principais competências comportamentais do candidato (ex: comunicação, trabalho em equipe, liderança, proatividade).
+
+            2.  **Hard Skills:**
+                - Identifique e liste as principais competências técnicas (ex: fluência em idiomas, conhecimento em softwares específicos, experiência com maquinário de cozinha, etc.).
+
+            3.  **Fit Cultural:**
+                - Com base nas experiências e na forma como o candidato se descreve, avalie o potencial de alinhamento com um ambiente de restaurante (dinâmico, focado no cliente, colaborativo). Destaque pontos que sugiram um bom ou mau alinhamento.
+
+            4.  **Pontos de Atenção (Red Flags):**
+                - Identifique e liste possíveis pontos que merecem atenção ou aprofundamento na entrevista. Isso pode incluir:
+                    - Períodos curtos em empregos anteriores.
+                    - Lacunas de tempo não explicadas no currículo.
+                    - Falta de experiência relevante para a área de restaurantes.
+                    - Objetivos de carreira que parecem desalinhados com a vaga.
+                    - Qualquer outra informação que pareça inconsistente.
 
             Texto do Currículo:
             ---

@@ -597,11 +597,11 @@ interface JobDetailsProps {
   users: User[];
   onUpdateCandidate: (candidate: Candidate) => void;
   onBulkUpdateCandidates: (updatedCandidates: Candidate[]) => void;
-  onArchiveCandidate: (candidateId: number) => void;
-  onRestoreCandidate: (candidateId: number) => void;
-  onPermanentDeleteCandidate: (candidateId: number) => void;
+  onArchiveCandidate: (candidateId: string) => void;
+  onRestoreCandidate: (candidateId: string) => void;
+  onPermanentDeleteCandidate: (candidateId: string) => void;
   onInterviewScheduled: (candidate: Candidate, interviewDetails: CandidateInterview) => void;
-  onBulkInterviewScheduled: (candidateIds: number[], interviewDetails: Omit<CandidateInterview, 'notes'>) => void;
+  onBulkInterviewScheduled: (candidateIds: string[], interviewDetails: Omit<CandidateInterview, 'notes'>) => void;
 }
 
 type SortKey = 'finalScore' | 'name' | 'applicationDate';
@@ -647,7 +647,7 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const [isArchivedPanelOpen, setIsArchivedPanelOpen] = useState(false);
 
-  const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<number>>(new Set());
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<string>>(new Set());
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [screeningApplied, setScreeningApplied] = useState(false);
 
@@ -828,7 +828,7 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
         URL.revokeObjectURL(url);
     };
 
-    const handleSelectCandidate = (candidateId: number) => {
+    const handleSelectCandidate = (candidateId: string) => {
         setSelectedCandidateIds(prev => {
             const newSet = new Set(prev);
             if (newSet.has(candidateId)) {

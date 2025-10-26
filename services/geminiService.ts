@@ -64,13 +64,13 @@ export const analyzeCandidateWithAI = async (candidate: Candidate, jobTitle: str
     const jsonText = response.text.trim();
     const result = JSON.parse(jsonText);
 
-    // Limpa a formatação de asteriscos dos campos de texto
+    // Limpa a formatação de asteriscos e garante que os arrays existam
     const cleanedResult: AIAnalysis = {
       ...result,
-      summary: result.summary.replace(/\*\*/g, ''),
-      strengths: result.strengths.map((s: string) => s.replace(/\*\*/g, '')),
-      weaknesses: result.weaknesses.map((w: string) => w.replace(/\*\*/g, '')),
-      interviewQuestions: result.interviewQuestions.map((q: string) => q.replace(/\*\*/g, '')),
+      summary: (result.summary || '').replace(/\*\*/g, ''),
+      strengths: (result.strengths || []).map((s: string) => s.replace(/\*\*/g, '')),
+      weaknesses: (result.weaknesses || []).map((w: string) => w.replace(/\*\*/g, '')),
+      interviewQuestions: (result.interviewQuestions || []).map((q: string) => q.replace(/\*\*/g, '')),
     };
 
     return cleanedResult;

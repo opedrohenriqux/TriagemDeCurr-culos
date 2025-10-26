@@ -329,14 +329,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = (props) => {
     const interviewsByDate = useMemo(() => {
         const grouped = new Map<string, Candidate[]>();
         filteredInterviews.forEach(interview => {
-            // Defensive check: ensure interview and interview.date exist
-            if (interview.interview && interview.interview.date) {
-                const dateKey = interview.interview.date;
-                if (!grouped.has(dateKey)) {
-                    grouped.set(dateKey, []);
-                }
-                grouped.get(dateKey)!.push(interview);
+            const dateKey = interview.interview!.date;
+            if (!grouped.has(dateKey)) {
+                grouped.set(dateKey, []);
             }
+            grouped.get(dateKey)!.push(interview);
         });
         return grouped;
     }, [filteredInterviews]);

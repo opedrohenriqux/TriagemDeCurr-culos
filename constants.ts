@@ -6,7 +6,7 @@ export const USERS: User[] = [
   { id: 2, username: 'Marcos', password: 'Marcos', role: 'admin', specialty: 'Cozinha' },
   { id: 3, username: 'ruan@lacoste.com', password: 'Ruan', role: 'admin', specialty: 'Marketing' },
   { id: 4, username: 'Luan', password: 'Luan', role: 'admin', specialty: 'Financeiro' },
-  { id: 5, username: 'samuel@lacoste.com', password: 'Samuel', role: 'admin', specialty: 'Administrativo' },
+  { id: 5, username: 'Samuel', password: 'Samuel', role: 'admin', specialty: 'Administrativo' },
 ];
 
 export const INITIAL_JOBS: Job[] = [

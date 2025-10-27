@@ -514,6 +514,26 @@ function App() {
     logHistory('UPDATE_CANDIDATE', `Cancelou entrevistas em lote para ${candidateIds.length} candidatos.`);
   };
 
+  const handleBulkScheduleInterviews = async (data: {
+    candidateIds: string[];
+    jobId: string;
+    date: string;
+    time: string;
+    interviewers: string[];
+  }) => {
+    const { candidateIds, date, time, interviewers } = data;
+    const interviewDetails: CandidateInterview = { date, time, interviewers, feedback: '', noShow: false };
+
+    const candidatesToUpdate = candidates.filter(c => candidateIds.includes(c.id));
+    const updatePromises = candidatesToUpdate.map(c => {
+        const updated = { ...c, interview: interviewDetails, status: 'interview' as CandidateStatus };
+        return candidateService.update(c.id, updated);
+    });
+
+    await Promise.all(updatePromises);
+    logHistory('UPDATE_CANDIDATE', `Agendou entrevistas em lote para ${candidateIds.length} candidatos.`);
+  };
+
 
   // Talent Pool Management
   const handleAddTalent = async (talentData: Omit<Talent, 'id'>) => {
@@ -801,6 +821,7 @@ function App() {
         onRestoreCandidate={handleRestoreCandidate}
         onPermanentDeleteCandidate={handlePermanentDeleteCandidate}
         onBulkCancelInterviews={handleBulkCancelInterviews}
+        onBulkScheduleInterviews={handleBulkScheduleInterviews}
         onAddTalent={handleAddTalent}
         onUpdateTalent={handleUpdateTalent}
         onArchiveTalent={handleArchiveTalent}

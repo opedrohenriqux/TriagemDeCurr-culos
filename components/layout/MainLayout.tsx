@@ -57,6 +57,13 @@ interface MainLayoutProps {
   onRestoreCandidate: (candidateId: string) => void;
   onPermanentDeleteCandidate: (candidateId: string) => void;
   onBulkCancelInterviews: (candidateIds: string[]) => void;
+    onBulkScheduleInterviews: (data: {
+        candidateIds: string[];
+        jobId: string;
+        date: string;
+        time: string;
+        interviewers: string[];
+    }) => void;
   onAddTalent: (talent: Omit<Talent, 'id'>) => void;
   onUpdateTalent: (talent: Talent) => void;
   onArchiveTalent: (talentId: string) => void;
@@ -148,6 +155,7 @@ const MainLayout: React.FC<MainLayoutProps> = (props) => {
             users={props.users} 
             onUpdateCandidate={props.onUpdateCandidate}
             onBulkCancelInterviews={props.onBulkCancelInterviews}
+                  onBulkScheduleInterviews={props.onBulkScheduleInterviews}
             onOpenMessaging={props.onOpenMessaging}
             dynamics={props.dynamics}
             onAddDynamic={props.onAddDynamic}

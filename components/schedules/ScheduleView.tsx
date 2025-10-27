@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Candidate, Job, User, CandidateInterview, Dynamic, ActiveDynamicTimer } from '../../types';
 import InitialsAvatar from '../common/InitialsAvatar';
 import InterviewSchedulerModal from './InterviewSchedulerModal';
+import CandidateSelectorModal from './CandidateSelectorModal';
 import InterviewFeedbackModal from './InterviewFeedbackModal';
 import InterviewReports from './InterviewReports';
 import DynamicsView from './DynamicsView';
@@ -12,6 +13,13 @@ interface ScheduleViewProps {
     users: User[];
     onUpdateCandidate: (candidate: Candidate, oldStatus?: Candidate['status']) => void;
     onBulkCancelInterviews: (candidateIds: string[]) => void;
+    onBulkScheduleInterviews: (data: {
+        candidateIds: string[];
+        jobId: string;
+        date: string;
+        time: string;
+        interviewers: string[];
+    }) => void;
     onOpenMessaging: (candidateId: string) => void,
     dynamics: Dynamic[];
     onAddDynamic: (dynamic: Omit<Dynamic, 'id'>) => void;
@@ -36,6 +44,7 @@ const CalendarView: React.FC<{
     onDateSelect: (key: string | null) => void,
     jobMap: Map<string, string>,
     onBulkCancel: (ids: string[]) => void,
+    onScheduleForDate: (date: string) => void,
 }> = ({ 
     interviewsByDate, 
     currentDate, 
@@ -48,6 +57,7 @@ const CalendarView: React.FC<{
     onDateSelect, 
     jobMap,
     onBulkCancel,
+    onScheduleForDate,
 }) => {
     
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -110,14 +120,25 @@ const CalendarView: React.FC<{
                                 <div 
                                     key={dateKey} 
                                     onClick={() => handleDateClick(dateKey, hasInterviews)}
-                                    className={`relative h-32 p-2 border border-light-border/50 dark:border-border/50 rounded-md overflow-hidden transition-colors
+                                    className={`relative group h-32 p-2 border border-light-border/50 dark:border-border/50 rounded-md overflow-hidden transition-colors
                                         ${isCurrentMonth ? 'bg-light-surface dark:bg-surface' : 'bg-light-background/50 dark:bg-background/50'}
                                         ${hasInterviews ? 'cursor-pointer hover:bg-light-background dark:hover:bg-background' : ''}
                                         ${selectedDateKey === dateKey ? 'border-2 border-light-primary dark:border-primary' : ''}
                                     `}
                                 >
-                                    <div className={`text-sm font-semibold ${isToday(day) ? 'bg-light-primary text-white rounded-full w-6 h-6 flex items-center justify-center' : ''} ${!isCurrentMonth ? 'text-light-text-secondary/50 dark:text-text-secondary/50' : ''}`}>
-                                        {day.getDate()}
+                                    <div className="flex justify-between items-center">
+                                        <div className={`text-sm font-semibold ${isToday(day) ? 'bg-light-primary text-white rounded-full w-6 h-6 flex items-center justify-center' : ''} ${!isCurrentMonth ? 'text-light-text-secondary/50 dark:text-text-secondary/50' : ''}`}>
+                                            {day.getDate()}
+                                        </div>
+                                        {isCurrentMonth && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onScheduleForDate(dateKey); }}
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-light-primary/80 hover:bg-light-primary text-white font-bold py-1 px-2 rounded-full"
+                                                title="Agendar para este dia"
+                                            >
+                                                +
+                                            </button>
+                                        )}
                                     </div>
                                     <div className="overflow-y-auto max-h-20 space-y-1 mt-1 text-left">
                                         {interviews.map(interview => (
@@ -266,7 +287,7 @@ const ListView: React.FC<{
 );
 
 const ScheduleView: React.FC<ScheduleViewProps> = (props) => {
-    const { candidates, jobs, users, onUpdateCandidate, onBulkCancelInterviews, onOpenMessaging, dynamics, onAddDynamic, onUpdateDynamic, onDeleteDynamic } = props;
+    const { candidates, jobs, users, onUpdateCandidate, onBulkCancelInterviews, onBulkScheduleInterviews, onOpenMessaging, dynamics, onAddDynamic, onUpdateDynamic, onDeleteDynamic } = props;
     const [activeTab, setActiveTab] = useState<'agenda' | 'dinamica' | 'relatorios'>('agenda');
     const [view, setView] = useState<'calendar' | 'list'>('calendar');
     const [filterMode, setFilterMode] = useState<'upcoming' | 'past'>('upcoming');
@@ -276,6 +297,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = (props) => {
     const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
     const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
     const [feedbackCandidate, setFeedbackCandidate] = useState<Candidate | null>(null);
+    const [isSelectorModalOpen, setIsSelectorModalOpen] = useState(false);
+    const [dateForScheduling, setDateForScheduling] = useState('');
 
     const jobMap = useMemo(() => new Map(jobs.map(job => [job.id, job.title])), [jobs]);
     const jobForFeedback = useMemo(() => {
@@ -298,6 +321,22 @@ const ScheduleView: React.FC<ScheduleViewProps> = (props) => {
     const handleSaveInterview = (candidate: Candidate, interviewDetails: CandidateInterview) => {
         onUpdateCandidate({ ...candidate, interview: interviewDetails, status: 'approved' });
         setEditingCandidate(null);
+    };
+
+    const handleOpenSelectorModal = (date: string) => {
+        setDateForScheduling(date);
+        setIsSelectorModalOpen(true);
+    };
+
+    const handleBulkSchedule = (data: {
+        candidateIds: string[];
+        jobId: string;
+        date: string;
+        time: string;
+        interviewers: string[];
+    }) => {
+        onBulkScheduleInterviews(data);
+        setIsSelectorModalOpen(false);
     };
 
     const filteredInterviews = useMemo(() => {
@@ -403,6 +442,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = (props) => {
                             onDateSelect={setSelectedDateKey}
                             jobMap={jobMap}
                             onBulkCancel={onBulkCancelInterviews}
+                            onScheduleForDate={handleOpenSelectorModal}
                         />
                     ) : (
                         <ListView 
@@ -452,6 +492,18 @@ const ScheduleView: React.FC<ScheduleViewProps> = (props) => {
                     job={jobForFeedback}
                     onUpdateCandidate={onUpdateCandidate}
                     dynamics={dynamics}
+                />
+            )}
+
+            {isSelectorModalOpen && (
+                <CandidateSelectorModal
+                    isOpen={isSelectorModalOpen}
+                    onClose={() => setIsSelectorModalOpen(false)}
+                    onSchedule={handleBulkSchedule}
+                    jobs={jobs}
+                    candidates={candidates}
+                    users={users}
+                    selectedDate={dateForScheduling}
                 />
             )}
         </div>

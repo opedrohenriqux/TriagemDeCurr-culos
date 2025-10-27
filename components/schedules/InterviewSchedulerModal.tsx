@@ -95,7 +95,7 @@ const InterviewSchedulerModal: React.FC<InterviewSchedulerModalProps> = ({ isOpe
     
     const bookedSlotsForSelectedDay = useMemo(() => {
         const slots = new Set<string>();
-        if (!selectedDate) return slots;
+        if (!selectedDate || !allCandidates) return slots; // Defensive check
         
         const selectedDateString = selectedDate.toISOString().split('T')[0];
 

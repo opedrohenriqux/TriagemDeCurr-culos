@@ -325,36 +325,21 @@ const generateJobPopulation = (jobId: string, count: number) => {
 
             let status: CandidateStatus = 'applied';
             let interview: CandidateInterview | undefined = undefined;
-            let hireDate: string | undefined = undefined;
 
             if (daysSinceApplication > 7) {
                 if (isCompatible) {
-                    const interviewDate = new Date(appDate);
-                    interviewDate.setDate(appDate.getDate() + Math.floor(Math.random() * 5) + 2);
+                    const interviewDate = new Date(); // Start from today
+                    interviewDate.setDate(interviewDate.getDate() + Math.floor(Math.random() * 10) + 2); // Schedule 2-12 days in the future
 
                     interview = {
                         date: interviewDate.toISOString().split('T')[0],
-                        time: `${String(Math.floor(Math.random() * 9) + 8).padStart(2, '0')}:00`,
+                        time: `${String(Math.floor(Math.random() * 9) + 9).padStart(2, '0')}:00`, // 09:00 - 17:00
                         location: 'Online (Google Meet)',
                         interviewers: [USERS[Math.floor(Math.random() * USERS.length)].username],
                         notes: 'Entrevista de triagem.',
-                        noShow: Math.random() > 0.9 
+                        noShow: false
                     };
-
-                    if (interviewDate < now) {
-                        if (interview.noShow) {
-                            status = 'rejected';
-                        } else if (Math.random() > 0.5) {
-                            status = 'hired';
-                            const hireDateObj = new Date(interviewDate);
-                            hireDateObj.setDate(interviewDate.getDate() + 3);
-                            hireDate = hireDateObj.toISOString();
-                        } else {
-                            status = 'rejected';
-                        }
-                    } else {
-                        status = 'approved';
-                    }
+                    status = 'interview';
                 } else {
                     status = 'rejected';
                 }
@@ -364,7 +349,6 @@ const generateJobPopulation = (jobId: string, count: number) => {
                 ...candidateData,
                 status,
                 interview,
-                hireDate,
             };
             candidates.push(candidate);
         }

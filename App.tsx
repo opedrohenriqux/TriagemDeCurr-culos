@@ -97,9 +97,11 @@ function App() {
         let appUser = existingUsers.find(u => u.id === firebaseUser.uid);
 
         if (!appUser) {
+          const name = firebaseUser.email || 'Usuário Anônimo';
+          const displayName = name.includes('@') ? name.split('@')[0].charAt(0).toUpperCase() + name.split('@')[0].slice(1) : name.split(' ')[0];
           const newUser: User = {
             id: firebaseUser.uid,
-            username: firebaseUser.email || 'Usuário Anônimo',
+            username: displayName,
             role: 'user', // Default role
             specialty: 'Generalista',
           };

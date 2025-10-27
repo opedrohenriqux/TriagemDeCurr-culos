@@ -502,20 +502,6 @@ function App() {
     }
   };
   
-  const handleInterviewScheduled = (candidate: Candidate, interviewDetails: CandidateInterview) => {
-    handleUpdateCandidate({ ...candidate, interview: interviewDetails, status: 'approved' });
-    logHistory('UPDATE_CANDIDATE', `Agendou entrevista para '${candidate.name}'.`);
-  };
-  
-  const handleBulkInterviewScheduled = async (candidateIds: string[], interviewDetails: Omit<CandidateInterview, 'notes'>) => {
-    const candidatesToUpdate = candidates.filter(c => candidateIds.includes(c.id));
-    const updatePromises = candidatesToUpdate.map(c =>
-      candidateService.update(c.id, { ...c, interview: { ...interviewDetails, notes: '' }, status: 'approved' })
-    );
-    await Promise.all(updatePromises);
-    logHistory('UPDATE_CANDIDATE', `Agendou entrevistas em lote para ${candidateIds.length} candidatos.`);
-  };
-
   const handleBulkCancelInterviews = async (candidateIds: string[]) => {
     const candidatesToUpdate = candidates.filter(c => candidateIds.includes(c.id));
     const updatePromises = candidatesToUpdate.map(c => {
@@ -814,8 +800,6 @@ function App() {
         onArchiveCandidate={handleArchiveCandidate}
         onRestoreCandidate={handleRestoreCandidate}
         onPermanentDeleteCandidate={handlePermanentDeleteCandidate}
-        onInterviewScheduled={handleInterviewScheduled}
-        onBulkInterviewScheduled={handleBulkInterviewScheduled}
         onBulkCancelInterviews={handleBulkCancelInterviews}
         onAddTalent={handleAddTalent}
         onUpdateTalent={handleUpdateTalent}

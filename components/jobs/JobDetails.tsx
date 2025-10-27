@@ -1,7 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Candidate, AIAnalysis, Job, CandidateStatus, Resume, CandidateInterview, User } from '../../types';
-import InterviewSchedulerModal from '../schedules/InterviewSchedulerModal';
-import BulkInterviewSchedulerModal from '../schedules/BulkInterviewSchedulerModal';
 import { analyzeCandidateWithAI, analyzeResumeWithAI } from '../../services/geminiService';
 import InitialsAvatar from '../common/InitialsAvatar';
 import Pagination from '../common/Pagination';
@@ -83,12 +81,11 @@ interface CandidateCardProps {
   onOpenProfile: (candidate: Candidate) => void;
   analysis?: AIAnalysis | null;
   onArchive: (candidateId: string) => void;
-  onScheduleInterview: (candidate: Candidate) => void;
   onSelect: (id: string) => void;
   isSelected: boolean;
 }
 
-const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, onOpenProfile, analysis, onArchive, onScheduleInterview, onSelect, isSelected }) => {
+const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, onOpenProfile, analysis, onArchive, onSelect, isSelected }) => {
     const [showTooltip, setShowTooltip] = useState(false);
     const canSchedule = ['applied', 'screening', 'approved'].includes(candidate.status);
 
@@ -129,17 +126,6 @@ const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, onOpenProfile,
                 <div className="mt-4 pt-4 border-t border-light-border dark:border-border text-center bg-indigo-500/10 p-2 rounded-lg ml-8">
                     <p className="text-sm font-bold text-indigo-600 dark:text-indigo-300">Entrevista Agendada</p>
                     <p className="text-xs text-light-text-secondary dark:text-text-secondary">{new Date(candidate.interview.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} às {candidate.interview.time}</p>
-                </div>
-            ): (
-                 <div className="mt-4 pt-4 border-t border-light-border dark:border-border ml-8">
-                    <button
-                        type="button"
-                        onClick={() => onScheduleInterview(candidate)}
-                        disabled={!canSchedule}
-                        className="w-full bg-light-secondary/20 dark:bg-secondary/20 text-light-secondary dark:text-secondary font-semibold py-2 rounded-lg hover:bg-light-secondary/30 dark:hover:bg-secondary/40 transition-colors text-sm disabled:bg-light-border dark:disabled:bg-border disabled:text-light-text-secondary dark:disabled:text-text-secondary disabled:cursor-not-allowed"
-                    >
-                        Agendar Entrevista
-                    </button>
                 </div>
             )}
 
@@ -600,8 +586,6 @@ interface JobDetailsProps {
   onArchiveCandidate: (candidateId: string) => void;
   onRestoreCandidate: (candidateId: string) => void;
   onPermanentDeleteCandidate: (candidateId: string) => void;
-  onInterviewScheduled: (candidate: Candidate, interviewDetails: CandidateInterview) => void;
-  onBulkInterviewScheduled: (candidateIds: string[], interviewDetails: Omit<CandidateInterview, 'notes'>) => void;
 }
 
 type SortKey = 'finalScore' | 'name' | 'applicationDate';
@@ -629,9 +613,8 @@ const FilterButton: React.FC<{label: string; count: number; isActive: boolean; o
 );
 
 
-const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates, users, onUpdateCandidate, onBulkUpdateCandidates, onArchiveCandidate, onRestoreCandidate, onPermanentDeleteCandidate, onInterviewScheduled, onBulkInterviewScheduled }) => {
+const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates, users, onUpdateCandidate, onBulkUpdateCandidates, onArchiveCandidate, onRestoreCandidate, onPermanentDeleteCandidate }) => {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-  const [schedulingCandidate, setSchedulingCandidate] = useState<Candidate | null>(null);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(true);
   const [showAISuggestion, setShowAISuggestion] = useState(false);
@@ -688,11 +671,6 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
     setAnalyses(prev => ({ ...prev, [candidateId]: analysis }));
   };
   
-   const handleScheduleInterview = (interviewDetails: CandidateInterview) => {
-        if (schedulingCandidate) {
-            onInterviewScheduled(schedulingCandidate, interviewDetails);
-        }
-   };
 
   const scoredCandidates = useMemo(() => {
     if (!activeApplicants) return [];
@@ -723,14 +701,6 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
   const approvedForScheduling = useMemo(() => 
     scoredCandidates.filter(c => c.status === 'approved'), 
   [scoredCandidates]);
-
-  const handleScheduleAllApproved = () => {
-    if (approvedForScheduling.length === 0) return;
-    const ids = approvedForScheduling.map(c => c.id);
-    setSelectedCandidateIds(new Set(ids));
-    setIsBulkModalOpen(true);
-  };
-
 
   const filteredAndSortedCandidates = useMemo(() => {
     let candidatesToProcess = [...scoredCandidates];
@@ -1094,15 +1064,6 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M18 13l-6 6M6 13l6 6"/></svg>
                         }
                     </button>
-                     <button 
-                        type="button"
-                        onClick={handleScheduleAllApproved}
-                        disabled={approvedForScheduling.length === 0}
-                        className="flex items-center gap-2 bg-light-secondary dark:bg-secondary text-white dark:text-background px-3 py-2 text-sm rounded-lg border border-transparent hover:bg-indigo-700 dark:hover:bg-indigo-500 disabled:bg-light-border dark:disabled:bg-border disabled:text-light-text-secondary dark:disabled:text-text-secondary disabled:cursor-not-allowed transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="m9 16 2 2 4-4"></path></svg>
-                        Agendar Aprovados ({approvedForScheduling.length})
-                    </button>
                      <button type="button" onClick={handleExportCSV} className="flex items-center gap-2 bg-light-surface dark:bg-surface text-light-text-secondary dark:text-text-secondary px-3 py-2 text-sm rounded-lg border border-light-border dark:border-border hover:bg-light-border dark:hover:bg-border">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         Exportar
@@ -1110,19 +1071,6 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
                </div>
            </div>
             
-            {/* Bulk Actions Panel */}
-            {selectedCandidateIds.size > 0 && (
-                <div className="bg-light-surface dark:bg-surface p-4 rounded-xl border border-light-border dark:border-border mb-6 flex justify-between items-center animate-fade-in">
-                    <p className="text-sm font-semibold text-light-text-primary dark:text-text-primary">{selectedCandidateIds.size} candidato(s) selecionado(s).</p>
-                    <button 
-                        type="button"
-                        onClick={() => setIsBulkModalOpen(true)}
-                        className="bg-light-secondary dark:bg-secondary text-white dark:text-background font-bold px-4 py-2 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-500 transition-colors text-sm"
-                    >
-                        Agendar Entrevista em Lote
-                    </button>
-                </div>
-            )}
 
 
            {/* Candidate List */}
@@ -1170,32 +1118,6 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, jobs, candidates
           <ResumeModal 
             candidate={selectedCandidate}
             onClose={() => setIsResumeModalOpen(false)}
-          />
-      )}
-      {schedulingCandidate && (
-        <InterviewSchedulerModal 
-            isOpen={!!schedulingCandidate}
-            onClose={() => setSchedulingCandidate(null)}
-            candidate={schedulingCandidate}
-            onSchedule={handleScheduleInterview}
-            allUsers={users}
-            allCandidates={candidates}
-            allJobs={jobs}
-        />
-      )}
-      {isBulkModalOpen && (
-          <BulkInterviewSchedulerModal
-            isOpen={isBulkModalOpen}
-            onClose={() => setIsBulkModalOpen(false)}
-            candidatesToSchedule={selectedCandidatesForBulk}
-            onScheduleBulk={(details) => {
-                onBulkInterviewScheduled(Array.from(selectedCandidateIds), details);
-                setIsBulkModalOpen(false);
-                setSelectedCandidateIds(new Set());
-            }}
-            allUsers={users}
-            allCandidates={candidates}
-            allJobs={jobs}
           />
       )}
       {showAISuggestion && (

@@ -56,8 +56,6 @@ interface MainLayoutProps {
   onArchiveCandidate: (candidateId: string) => void;
   onRestoreCandidate: (candidateId: string) => void;
   onPermanentDeleteCandidate: (candidateId: string) => void;
-  onInterviewScheduled: (candidate: Candidate, interviewDetails: CandidateInterview) => void;
-  onBulkInterviewScheduled: (candidateIds: string[], interviewDetails: Omit<CandidateInterview, 'notes'>) => void;
   onBulkCancelInterviews: (candidateIds: string[]) => void;
   onAddTalent: (talent: Omit<Talent, 'id'>) => void;
   onUpdateTalent: (talent: Talent) => void;
@@ -112,8 +110,6 @@ const MainLayout: React.FC<MainLayoutProps> = (props) => {
           onArchiveCandidate={props.onArchiveCandidate}
           onRestoreCandidate={props.onRestoreCandidate}
           onPermanentDeleteCandidate={props.onPermanentDeleteCandidate}
-          onInterviewScheduled={props.onInterviewScheduled}
-          onBulkInterviewScheduled={props.onBulkInterviewScheduled}
         />;
       }
       return <JobList 

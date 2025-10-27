@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Message, User, Candidate, Job, CandidateStatus } from '../../types';
-import InitialsAvatar from '../common/InitialsAvatar';
-import { getSuggestedReplies } from '../../services/geminiService';
-import Pagination from '../common/Pagination';
+import { Message, User, Candidate, Job, CandidateStatus } from '../../types.ts';
+import InitialsAvatar from '../common/InitialsAvatar.tsx';
+import { getSuggestedReplies } from '../../services/geminiService.ts';
+import Pagination from '../common/Pagination.tsx';
 
 // Modal para iniciar nova conversa
 interface NewConversationModalProps {

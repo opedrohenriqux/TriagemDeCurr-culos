@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser } from 'firebase/auth';
-import LoginScreen from './components/auth/LoginScreen';
-import MainLayout, { View } from './components/layout/MainLayout';
-import { User, Job, Candidate, Talent, CandidateInterview, Message, CandidateStatus, Dynamic, ActiveDynamicTimer } from './types';
-import ReminderToast from './components/notifications/ReminderToast';
-import UndoToast from './components/notifications/UndoToast';
-import ApplicationForm from './components/application/ApplicationForm';
-import { generateInterviewInvitationMessage } from './services/geminiService';
-import AIMessageOfferToast from './components/notifications/AIMessageOfferToast';
-import { auth } from './services/firebase';
-import { jobService, candidateService, talentService, messageService, dynamicService, userService, activeTimerService } from './services/firestoreService';
+import LoginScreen from './components/auth/LoginScreen.tsx';
+import MainLayout, { View } from './components/layout/MainLayout.tsx';
+import { User, Job, Candidate, Talent, CandidateInterview, Message, CandidateStatus, Dynamic, ActiveDynamicTimer } from './types.ts';
+import ReminderToast from './components/notifications/ReminderToast.tsx';
+import UndoToast from './components/notifications/UndoToast.tsx';
+import ApplicationForm from './components/application/ApplicationForm.tsx';
+import { generateInterviewInvitationMessage } from './services/geminiService.ts';
+import AIMessageOfferToast from './components/notifications/AIMessageOfferToast.tsx';
+import { auth } from './services/firebase.ts';
+import { jobService, candidateService, talentService, messageService, dynamicService, userService, activeTimerService } from './services/firestoreService.ts';
 
 interface ApplicationFormData {
     jobId: string;
@@ -98,7 +98,7 @@ function App() {
 
         if (!appUser) {
           const name = firebaseUser.email || 'Usuário Anônimo';
-          const displayName = name.includes('@') ? name.split('@')[0].charAt(0).toUpperCase() + name.split('@')[0].slice(1) : name.split(' ')[0];
+          const displayName = name.includes('@') ? name.split('@')[0].charAt(0).toUpperCase() + name.split('@')[0].slice(1) : name;
           const newUser: User = {
             id: firebaseUser.uid,
             username: displayName,

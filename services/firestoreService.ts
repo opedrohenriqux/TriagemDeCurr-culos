@@ -1,6 +1,6 @@
-import { db } from './firebase';
+import { db } from './firebase.ts';
 import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { Job, Candidate, Talent, Message, Dynamic, User, ActiveDynamicTimer } from '../types';
+import { Job, Candidate, Talent, Message, Dynamic, User, ActiveDynamicTimer } from '../types.ts';
 
 // Helper to remove undefined values, which are not supported by Firestore.
 const sanitizeData = (data: any) => {

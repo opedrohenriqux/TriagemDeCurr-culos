@@ -478,7 +478,7 @@ const Dashboard: React.FC<DashboardProps> = ({ jobs, candidates }) => {
              <div className="bg-light-surface dark:bg-surface rounded-xl shadow-lg p-6 border border-light-border dark:border-border flex flex-col">
                 <h2 className="text-xl font-bold text-light-text-primary dark:text-text-primary mb-4 flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="text-light-primary dark:text-primary" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-                    CrocoIA
+                    Lacostinho
                 </h2>
                 <div className="space-y-3 mb-4">
                     {aiInsights.map((insight, index) => (

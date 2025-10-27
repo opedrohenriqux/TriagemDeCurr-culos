@@ -25,7 +25,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ jobs, candidates, user })
             {
                 id: Date.now(),
                 sender: 'ai',
-                text: `Olá, ${user.username}! Sou a CrocoIA, a assistente de IA do Lacoste Burger. Como posso ajudar você hoje a otimizar seu processo de recrutamento?`,
+                text: `Olá, ${user.username}! Sou a Lacostinho, a assistente de IA do Lacoste Burger. Como posso ajudar você hoje a otimizar seu processo de recrutamento?`,
                 timestamp: new Date().toISOString()
             }
         ]);
@@ -106,7 +106,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ jobs, candidates, user })
     return (
         <div className="flex flex-col h-[calc(100vh-10rem)] max-w-4xl mx-auto bg-light-surface dark:bg-surface rounded-xl border border-light-border dark:border-border shadow-xl">
             <div className="p-4 border-b border-light-border dark:border-border">
-                <h1 className="text-xl font-bold text-light-text-primary dark:text-text-primary">CrocoIA</h1>
+                <h1 className="text-xl font-bold text-light-text-primary dark:text-text-primary">Lacostinho</h1>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {messages.map((msg) => (

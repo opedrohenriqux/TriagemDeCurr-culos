@@ -771,7 +771,7 @@ function App() {
 
   if (!currentUser) {
     if (appState === 'application') {
-      return <ApplicationForm onSwitchToLogin={() => setAppState('login')} onAddCandidate={handleAddCandidate} candidates={candidates} users={users} messages={messages} onSendMessage={handleSendMessage} onMarkMessagesAsRead={handleMarkMessagesAsRead} jobs={jobs} dynamics={dynamics} />;
+      return <ApplicationForm onSwitchToLogin={() => setAppState('login')} onAddCandidate={handleAddCandidate} candidates={candidates} users={users} messages={messages} onSendMessage={handleSendMessage} onMarkMessagesAsRead={handleMarkMessagesAsRead} jobs={jobs} dynamics={dynamics} theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />;
     }
     return <LoginScreen onLogin={handleLogin} onSwitchToApplication={() => setAppState('application')} />;
   }

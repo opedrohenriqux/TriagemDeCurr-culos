@@ -111,7 +111,7 @@ const Header: React.FC<HeaderProps> = (props) => {
   const menuItems: { id: View, label: string }[] = [
     { id: 'vagas', label: 'Vagas' },
     { id: 'talentos', label: 'Banco de Talentos' },
-    { id: 'assistencia', label: 'CrocoIA' },
+    { id: 'assistencia', label: 'Lacostinho' },
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'relatorios', label: 'Relatórios' },
     { id: 'entrevistas', label: 'Entrevistas' },

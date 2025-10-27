@@ -472,7 +472,12 @@ export const analyzeResumeWithAI = async (resumeDataUrl: string): Promise<string
 export const getDynamicInsights = async (dynamicData: any): Promise<string[] | null> => {
     if (!ai) return null;
 
-    const { dynamicTitle, generalNotes, groups } = dynamicData;
+    const { dynamicTitle, generalNotes, groups, candidates } = dynamicData;
+
+    const candidatesMap = (candidates || []).reduce((acc: any, curr: any) => {
+        acc[curr.id] = curr.name;
+        return acc;
+    }, {});
 
     const prompt = `
         **Contexto:** Você é um coach de RH para um recrutador do Lacoste Burger. Ele está no meio de uma dinâmica de grupo chamada "${dynamicTitle}" e pediu sua ajuda.
@@ -484,7 +489,7 @@ export const getDynamicInsights = async (dynamicData: any): Promise<string[] | n
         **Grupos e Anotações Individuais:**
         ${groups.map((g: any) => `
         - **Grupo ${g.name}:** ${g.groupNotes || "Nenhuma anotação de grupo ainda."}
-          ${Object.entries(g.individualNotes).map(([name, note]) => `  - ${name}: ${note}`).join('\n')}
+          ${Object.entries(g.individualNotes).map(([candidateId, note]) => `  - ${candidatesMap[candidateId] || `Candidato ${candidateId}`}: ${note}`).join('\n')}
         `).join('\n')}
         ---
 

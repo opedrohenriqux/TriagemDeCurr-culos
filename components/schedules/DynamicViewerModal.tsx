@@ -29,6 +29,7 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
     const [isAiLoading, setIsAiLoading] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
 
     // Timer State
     const [initialMinutes, setInitialMinutes] = useState(15);
@@ -148,6 +149,7 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                 groupNotes: groupNotes[groupIndex] || '',
                 individualNotes: individualNotes[groupIndex] || {},
             })),
+            candidates: allCandidates,
         };
         onUpdateDynamic(updatedDynamic);
         onClose();
@@ -227,54 +229,67 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
 
     const handleFinishDynamic = async () => {
         setIsAiLoading(true);
-        const dynamicData = {
-            dynamicTitle: dynamic.title,
-            generalNotes,
-            groups: dynamic.groups.map((group, groupIndex) => ({
-                ...group,
-                groupNotes: groupNotes[groupIndex] || '',
-                individualNotes: individualNotes[groupIndex] || {},
-            })),
-            candidates: allCandidates,
-        };
-
-        const summary = await summarizeDynamic(dynamicData);
-
-        if (summary) {
-            const updatedDynamic: Dynamic = {
-                ...dynamic,
+        setAiError(null);
+        try {
+            const dynamicData = {
+                dynamicTitle: dynamic.title,
                 generalNotes,
                 groups: dynamic.groups.map((group, groupIndex) => ({
                     ...group,
                     groupNotes: groupNotes[groupIndex] || '',
                     individualNotes: individualNotes[groupIndex] || {},
                 })),
-                aiSummary: summary,
-                status: 'completed',
+                candidates: allCandidates,
             };
-            onUpdateDynamic(updatedDynamic);
-        }
 
-        setIsAiLoading(false);
-        setIsConfirmModalOpen(false);
-        onClose();
+            const summary = await summarizeDynamic(dynamicData);
+
+            if (summary) {
+                const updatedDynamic: Dynamic = {
+                    ...dynamic,
+                    generalNotes,
+                    groups: dynamic.groups.map((group, groupIndex) => ({
+                        ...group,
+                        groupNotes: groupNotes[groupIndex] || '',
+                        individualNotes: individualNotes[groupIndex] || {},
+                    })),
+                    aiSummary: summary,
+                    status: 'completed',
+                };
+                onUpdateDynamic(updatedDynamic);
+                setIsAiLoading(false);
+                setIsConfirmModalOpen(false);
+                onClose();
+            } else {
+                throw new Error("A IA não conseguiu gerar um resumo.");
+            }
+        } catch (error) {
+            console.error("Erro ao finalizar dinâmica:", error);
+            setAiError("Ocorreu um erro ao gerar o resumo da IA. Por favor, tente novamente mais tarde.");
+            setIsAiLoading(false);
+        }
     };
 
     if (!isOpen) return null;
 
     const ConfirmationModal = () => (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[90]">
-            <div className="bg-light-surface dark:bg-surface p-6 rounded-lg shadow-xl text-center">
+            <div className="bg-light-surface dark:bg-surface p-6 rounded-lg shadow-xl text-center min-w-[320px]">
                 <h3 className="text-lg font-bold mb-4">Confirmar Finalização</h3>
                 {isAiLoading ? (
                     <p>Aguarde, o Lacostinho está gerando os resumos...</p>
+                ) : aiError ? (
+                    <>
+                        <p className="text-sm text-red-500 mb-4">{aiError}</p>
+                        <button onClick={() => { setIsConfirmModalOpen(false); setAiError(null); }} className="bg-light-border dark:bg-border font-bold px-4 py-2 rounded-lg">Fechar</button>
+                    </>
                 ) : (
                     <>
                         <p className="text-sm text-light-text-secondary dark:text-text-secondary mb-6">
                             Você tem certeza que deseja finalizar esta dinâmica? Esta ação é irreversível.
                         </p>
                         <div className="flex justify-center gap-4">
-                            <button onClick={() => setIsConfirmModalOpen(false)} className="bg-light-border dark:bg-border font-bold px-4 py-2 rounded-lg">Cancelar</button>
+                            <button onClick={() => { setIsConfirmModalOpen(false); setAiError(null); }} className="bg-light-border dark:bg-border font-bold px-4 py-2 rounded-lg">Cancelar</button>
                             <button onClick={handleFinishDynamic} className="bg-red-500 text-white font-bold px-4 py-2 rounded-lg">Confirmar e Gerar Resumos</button>
                         </div>
                     </>

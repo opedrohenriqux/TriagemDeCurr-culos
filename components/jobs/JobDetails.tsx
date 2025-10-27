@@ -122,7 +122,7 @@ const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, onOpenProfile,
                 </div>
             </div>
             
-            {candidate.interview ? (
+            {candidate.interview && (
                 <div className="mt-4 pt-4 border-t border-light-border dark:border-border text-center bg-indigo-500/10 p-2 rounded-lg ml-8">
                     <p className="text-sm font-bold text-indigo-600 dark:text-indigo-300">Entrevista Agendada</p>
                     <p className="text-xs text-light-text-secondary dark:text-text-secondary">{new Date(candidate.interview.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} às {candidate.interview.time}</p>

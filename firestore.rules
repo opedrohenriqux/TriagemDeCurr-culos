@@ -35,11 +35,8 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
     }
 
-    // TALENT POOL, HISTORY: Only admins can access.
+    // TALENT POOL: Only admins can access.
     match /talentPool/{talentId} {
-      allow read, write: if isAdmin();
-    }
-    match /history/{eventId} {
       allow read, write: if isAdmin();
     }
 

@@ -1,6 +1,6 @@
 import { db } from './firebase';
 import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { Job, Candidate, Talent, Message, HistoryEvent, Dynamic, User, ActiveDynamicTimer } from '../types';
+import { Job, Candidate, Talent, Message, Dynamic, User, ActiveDynamicTimer } from '../types';
 
 // Helper to remove undefined values, which are not supported by Firestore.
 const sanitizeData = (data: any) => {
@@ -130,7 +130,6 @@ export const jobService = createFirestoreService<Job>('jobs');
 export const candidateService = createFirestoreService<Candidate>('candidates');
 export const talentService = createFirestoreService<Talent>('talentPool');
 export const messageService = createFirestoreService<Message>('messages');
-export const historyService = createFirestoreService<HistoryEvent>('history');
 export const dynamicService = createFirestoreService<Dynamic>('dynamics');
 export const userService = createFirestoreService<User>('users');
 export const activeTimerService = createSingletonService<ActiveDynamicTimer>('appState', 'activeTimer');

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Header from './Header';
-import { User, Job, Candidate, Talent, CandidateInterview, Message, HistoryEvent, Dynamic, ActiveDynamicTimer } from '../../types';
+import { User, Job, Candidate, Talent, CandidateInterview, Message, Dynamic, ActiveDynamicTimer } from '../../types';
 
 // Import views
 import JobList from '../jobs/JobList';
@@ -14,11 +14,10 @@ import ScheduleView from '../schedules/ScheduleView';
 import ReportsView from '../reports/ReportsView';
 import DevsView from '../devs/DevsView';
 import HiresView from '../hires/HiresView';
-import HistoryView from '../history/HistoryView';
 import ErrorBoundary from '../common/ErrorBoundary';
 
 
-export type View = 'vagas' | 'talentos' | 'assistencia' | 'dashboard' | 'relatorios' | 'entrevistas' | 'contratacoes' | 'arquivo' | 'admin' | 'devs' | 'historico';
+export type View = 'vagas' | 'talentos' | 'assistencia' | 'dashboard' | 'relatorios' | 'entrevistas' | 'contratacoes' | 'arquivo' | 'admin' | 'devs';
 
 interface MainLayoutProps {
   user: User;
@@ -32,7 +31,6 @@ interface MainLayoutProps {
   talentPool: Talent[];
   users: User[];
   messages: Message[];
-  history: HistoryEvent[];
   messagingState: { isOpen: boolean, preselectedId: string | null };
   archivedConversations: Set<string>;
   dynamics: Dynamic[];
@@ -196,8 +194,6 @@ const MainLayout: React.FC<MainLayoutProps> = (props) => {
         />;
       case 'devs':
         return <DevsView />;
-      case 'historico':
-        return <HistoryView history={props.history} users={props.users} />;
       default:
         return <JobList jobs={activeJobs} onSelectJob={handleSelectJob} onAddJob={props.onAddJob} onUpdateJob={props.onUpdateJob} onArchiveJob={props.onArchiveJob} />;
     }

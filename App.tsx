@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser } from 'firebase/auth';
 import LoginScreen from './components/auth/LoginScreen';
 import MainLayout, { View } from './components/layout/MainLayout';
-import { User, Job, Candidate, Talent, CandidateInterview, Message, CandidateStatus, HistoryEvent, HistoryAction, Dynamic, ActiveDynamicTimer } from './types';
+import { User, Job, Candidate, Talent, CandidateInterview, Message, CandidateStatus, Dynamic, ActiveDynamicTimer } from './types';
 import ReminderToast from './components/notifications/ReminderToast';
 import UndoToast from './components/notifications/UndoToast';
 import ApplicationForm from './components/application/ApplicationForm';
 import { generateInterviewInvitationMessage } from './services/geminiService';
 import AIMessageOfferToast from './components/notifications/AIMessageOfferToast';
 import { auth } from './services/firebase';
-import { jobService, candidateService, talentService, messageService, historyService, dynamicService, userService, activeTimerService } from './services/firestoreService';
+import { jobService, candidateService, talentService, messageService, dynamicService, userService, activeTimerService } from './services/firestoreService';
 
 interface ApplicationFormData {
     jobId: string;
@@ -48,7 +48,6 @@ function App() {
   const [_rawTalentPool, _setRawTalentPool] = useState<Talent[]>([]);
   const [_rawMessages, _setRawMessages] = useState<Message[]>([]);
   const [archivedConversations, setArchivedConversations] = useState<Set<string>>(new Set());
-  const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [_rawDynamics, _setRawDynamics] = useState<Dynamic[]>([]);
   const [activeDynamicTimer, setActiveDynamicTimer] = useState<ActiveDynamicTimer | null>(null);
   const [_rawUsers, _setRawUsers] = useState<User[]>([]);
@@ -74,17 +73,8 @@ function App() {
   // State for AI message offer
   const [aiMessageOffer, setAiMessageOffer] = useState<{ candidate: Candidate; job: Job } | null>(null);
 
-  const logHistory = async (action: HistoryAction, details: string) => {
-    if (!currentUser) return;
-    const newEvent: Omit<HistoryEvent, 'id'> = {
-      timestamp: new Date().toISOString(),
-      userId: currentUser.id,
-      username: currentUser.username,
-      action: action,
-      details: details,
-    };
-    const savedEvent = await historyService.create(newEvent);
-    setHistory(prev => [savedEvent, ...prev]);
+  const logHistory = async (action: string, details: string) => {
+    // History logging is disabled
   };
 
   const handleOpenMessaging = (candidateId: number | null = null) => {
@@ -124,7 +114,6 @@ function App() {
           candidateService.listen(_setRawCandidates),
           talentService.listen(_setRawTalentPool),
           messageService.listen(_setRawMessages),
-          historyService.listen(setHistory),
           dynamicService.listen(_setRawDynamics),
           activeTimerService.listen(setActiveDynamicTimer),
         ];
@@ -136,7 +125,6 @@ function App() {
         _setRawCandidates([]);
         _setRawTalentPool([]);
         _setRawMessages([]);
-        setHistory([]);
         _setRawDynamics([]);
       }
     });
@@ -790,7 +778,6 @@ function App() {
         talentPool={talentPool}
         users={users}
         messages={messages}
-        history={history}
         messagingState={messagingState}
         archivedConversations={archivedConversations}
         dynamics={dynamics}

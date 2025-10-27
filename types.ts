@@ -114,23 +114,6 @@ export interface Message {
     isDeleted?: boolean;
 }
 
-export type HistoryAction = 
-    | 'CREATE_USER' | 'DELETE_USER' | 'UPDATE_USER' | 'TOGGLE_ADMIN'
-    | 'CREATE_JOB' | 'UPDATE_JOB' | 'ARCHIVE_JOB' | 'RESTORE_JOB' | 'DELETE_JOB'
-    | 'UPDATE_CANDIDATE' | 'ARCHIVE_CANDIDATE' | 'RESTORE_CANDIDATE' | 'DELETE_CANDIDATE'
-    | 'CREATE_TALENT' | 'UPDATE_TALENT' | 'ARCHIVE_TALENT' | 'RESTORE_TALENT' | 'DELETE_TALENT'
-    | 'SEND_TALENT_TO_JOB' | 'SEND_MESSAGE' | 'UPDATE_MESSAGE' | 'DELETE_CONVERSATION'
-    | 'ARCHIVE_CONVERSATION' | 'UNARCHIVE_CONVERSATION' | 'RESTORE_ALL' | 'DELETE_ALL'
-    | 'CREATE_DYNAMIC' | 'UPDATE_DYNAMIC' | 'DELETE_DYNAMIC';
-
-export interface HistoryEvent {
-    id: string;
-    timestamp: string;
-    userId: string;
-    username: string;
-    action: HistoryAction;
-    details: string;
-}
 
 export interface DynamicGroup {
     name: string;

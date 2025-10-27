@@ -96,57 +96,80 @@ function App() {
   };
 
 
+  // Effect for AUTHENTICATION and PUBLIC data listeners.
+  // This runs only ONCE on component mount.
   useEffect(() => {
-    // Listen for public data immediately
+    // Listen for public data immediately, as it's not user-dependent.
     const jobUnsubscribe = jobService.listen(_setRawJobs);
     const userUnsubscribe = userService.listen(_setRawUsers);
 
+    // Only handle authentication state changes here.
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // Fetch all users to check if this firebase user already has a profile in our 'users' collection.
         const existingUsers = await userService.getAll();
         let appUser = existingUsers.find(u => u.id === firebaseUser.uid);
 
+        // If the user does not exist in the 'users' collection, create them.
         if (!appUser) {
           const newUser: User = {
             id: firebaseUser.uid,
             username: firebaseUser.email || 'Usuário Anônimo',
-            role: 'user', // Default role
+            role: 'user',
             specialty: 'Generalista',
           };
           await userService.set(firebaseUser.uid, newUser);
           appUser = newUser;
         }
 
+        // Set the application's current user. This will trigger the next useEffect.
         setCurrentUser(appUser);
-
-        // Listen for protected data only after login
-        const unsubscribes = [
-          candidateService.listen(_setRawCandidates),
-          talentService.listen(_setRawTalentPool),
-          messageService.listen(_setRawMessages),
-          historyService.listen(setHistory),
-          dynamicService.listen(_setRawDynamics),
-          activeTimerService.listen(setActiveDynamicTimer),
-        ];
-
-        return () => unsubscribes.forEach(unsub => unsub());
       } else {
+        // If firebaseUser is null, it means the user logged out.
         setCurrentUser(null);
-        // Clear only protected data on logout
-        _setRawCandidates([]);
-        _setRawTalentPool([]);
-        _setRawMessages([]);
-        setHistory([]);
-        _setRawDynamics([]);
       }
     });
 
+    // Cleanup function for when the App component unmounts.
     return () => {
       jobUnsubscribe();
       userUnsubscribe();
       authUnsubscribe();
     };
-  }, []);
+  }, []); // The empty dependency array ensures this effect runs only once.
+
+
+  // Effect for PROTECTED data listeners.
+  // This effect depends on the user's ID. It runs whenever the user logs in or logs out.
+  useEffect(() => {
+    // If there is no user, we clear all protected data from the state and do nothing else.
+    if (!currentUser) {
+      _setRawCandidates([]);
+      _setRawTalentPool([]);
+      _setRawMessages([]);
+      setHistory([]);
+      _setRawDynamics([]);
+      setActiveDynamicTimer(null);
+      return; // Stop execution of the effect here, the cleanup function will handle unsubscribing.
+    }
+
+    // If there IS a user, we set up all the real-time data listeners for protected collections.
+    const unsubscribes = [
+      candidateService.listen(_setRawCandidates),
+      talentService.listen(_setRawTalentPool),
+      messageService.listen(_setRawMessages),
+      historyService.listen(setHistory),
+      dynamicService.listen(_setRawDynamics),
+      activeTimerService.listen(setActiveDynamicTimer),
+    ];
+
+    // The cleanup function for this effect is crucial.
+    // It will run when the component unmounts OR when `currentUser.id` changes (i.e., on logout).
+    // This ensures we don't have lingering listeners from a previous session.
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    };
+  }, [currentUser?.id]); // The dependency on `currentUser.id` is the key to this stable implementation.
 
   useEffect(() => {
     if (theme === 'dark') {

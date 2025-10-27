@@ -468,3 +468,131 @@ export const analyzeResumeWithAI = async (resumeDataUrl: string): Promise<string
         return "Ocorreu um erro inesperado durante a análise do currículo.";
     }
 };
+
+export const getDynamicInsights = async (dynamicData: any): Promise<string[] | null> => {
+    if (!ai) return null;
+
+    const { dynamicTitle, generalNotes, groups, candidates } = dynamicData;
+
+    const candidatesMap = (candidates || []).reduce((acc: any, curr: any) => {
+        acc[curr.id] = curr.name;
+        return acc;
+    }, {});
+
+    const prompt = `
+        **Contexto:** Você é um coach de RH para um recrutador do Lacoste Burger. Ele está no meio de uma dinâmica de grupo chamada "${dynamicTitle}" e pediu sua ajuda.
+        **Sua Tarefa:** Com base nas anotações parciais, gere 3 dicas ou insights acionáveis para ajudar o recrutador a observar melhor os candidatos.
+
+        **Dados Atuais:**
+        ---
+        **Anotações Gerais:** ${generalNotes || "Ainda nenhuma."}
+        **Grupos e Anotações Individuais:**
+        ${groups.map((g: any) => `
+        - **Grupo ${g.name}:** ${g.groupNotes || "Nenhuma anotação de grupo ainda."}
+          ${Object.entries(g.individualNotes).map(([candidateId, note]) => `  - ${candidatesMap[candidateId] || `Candidato ${candidateId}`}: ${note}`).join('\n')}
+        `).join('\n')}
+        ---
+
+        **Exemplos de Dicas:**
+        - "Você notou que [Nome do Candidato] está quieto? Tente fazer uma pergunta direta para incluí-lo."
+        - "O Grupo [Nome do Grupo] parece estar com dificuldades. Observe quem assume a liderança para resolver o impasse."
+        - "Suas anotações sobre [Nome do Candidato] mencionam 'proatividade'. Anote um exemplo específico de como ele demonstrou isso."
+
+        **Formato de Saída (JSON Obrigatório):**
+        Retorne um array de 3 strings.
+        {
+          "insights": [
+            "Primeira dica...",
+            "Segunda dica...",
+            "Terceira dica..."
+          ]
+        }
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
+        });
+        const jsonText = response.text.trim();
+        const result = JSON.parse(jsonText);
+        return result.insights as string[];
+    } catch (error) {
+        console.error("Erro ao gerar insights da dinâmica com IA:", error);
+        return null;
+    }
+};
+
+export const summarizeDynamic = async (dynamicData: any): Promise<any | null> => {
+    if (!ai) return null;
+
+    const { dynamicTitle, generalNotes, groups, candidates } = dynamicData;
+
+    const candidatesMap = candidates.reduce((acc: any, curr: any) => {
+        acc[curr.id] = curr.name;
+        return acc;
+    }, {});
+
+    const groupsData = groups.map((group: any) => ({
+        name: group.name,
+        members: group.members.map((id: string) => candidatesMap[id] || `ID ${id}`).join(', '),
+        groupNotes: group.groupNotes,
+        individualNotes: Object.entries(group.individualNotes).map(([candidateId, note]) =>
+            `- ${candidatesMap[candidateId] || `ID ${candidateId}`}: ${note}`
+        ).join('\n')
+    }));
+
+    const prompt = `
+        **Contexto:** Você é um especialista em RH analisando os resultados de uma dinâmica de grupo chamada "${dynamicTitle}" para o Lacoste Burger.
+        **Sua Tarefa:** Com base nas anotações do recrutador, gere um resumo conciso e insights para cada grupo e cada participante. O resultado deve ser um objeto JSON.
+
+        **Dados Brutos:**
+        ---
+        **Anotações Gerais sobre a Dinâmica:**
+        ${generalNotes || "Nenhuma."}
+
+        **Detalhes dos Grupos:**
+        ${groupsData.map((g: any) => `
+        **Grupo: ${g.name}**
+        - **Participantes:** ${g.members}
+        - **Anotações sobre o Grupo:** ${g.groupNotes || "Nenhuma."}
+        - **Anotações Individuais:**
+        ${g.individualNotes || "Nenhuma."}
+        `).join('\n')}
+        ---
+
+        **Formato de Saída (JSON Obrigatório):**
+        Gere um objeto JSON com a seguinte estrutura:
+        {
+          "overallSummary": "Um parágrafo com a sua análise geral da dinâmica, destacando o desempenho geral e pontos de atenção.",
+          "groupSummaries": [
+            {
+              "groupName": "Nome do Grupo",
+              "summary": "Análise do desempenho do grupo, sua sinergia e resultado."
+            }
+          ],
+          "candidateSummaries": [
+            {
+              "candidateName": "Nome do Candidato",
+              "summary": "Análise individual do candidato, destacando seus pontos fortes, fracos e comportamento observado."
+            }
+          ]
+        }
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+            }
+        });
+        const jsonText = response.text.trim();
+        return JSON.parse(jsonText);
+    } catch (error) {
+        console.error("Erro ao gerar resumo da dinâmica com IA:", error);
+        return null;
+    }
+};

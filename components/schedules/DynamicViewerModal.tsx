@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Dynamic, Candidate, ActiveDynamicTimer } from '../../types';
 import InitialsAvatar from '../common/InitialsAvatar';
 import { speak } from '../../services/speechService';
+import { summarizeDynamic, getDynamicInsights } from '../../services/geminiService';
 
 interface DynamicViewerModalProps {
     isOpen: boolean;
@@ -22,9 +23,13 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
     
     const [generalNotes, setGeneralNotes] = useState('');
     const [groupNotes, setGroupNotes] = useState<Record<number, string>>({}); // key: group index
-    const [individualNotes, setIndividualNotes] = useState<Record<number, Record<number, string>>>({}); // key: group index -> candidateId
+    const [individualNotes, setIndividualNotes] = useState<Record<number, Record<string, string>>>({}); // key: group index -> candidateId
     const [isSaved, setIsSaved] = useState(false);
     const [viewMode, setViewMode] = useState<'recruiter' | 'candidate'>('recruiter');
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+    const [isAiLoading, setIsAiLoading] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
 
     // Timer State
     const [initialMinutes, setInitialMinutes] = useState(15);
@@ -111,28 +116,31 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
 
 
     useEffect(() => {
-        if (dynamic) {
-            setGeneralNotes(dynamic.generalNotes || '');
-            const initialGroupNotes: Record<number, string> = {};
-            const initialIndividualNotes: Record<number, Record<number, string>> = {};
+        try {
+            if (dynamic) {
+                setGeneralNotes(dynamic.generalNotes || '');
+                const initialGroupNotes: Record<number, string> = {};
+                const initialIndividualNotes: Record<number, Record<string, string>> = {};
 
-            dynamic.groups.forEach((group, groupIndex) => {
-                initialGroupNotes[groupIndex] = group.groupNotes || '';
-                initialIndividualNotes[groupIndex] = group.individualNotes || {};
-            });
-            setGroupNotes(initialGroupNotes);
-            setIndividualNotes(initialIndividualNotes);
+                dynamic.groups.forEach((group, groupIndex) => {
+                    initialGroupNotes[groupIndex] = group.groupNotes || '';
+                    initialIndividualNotes[groupIndex] = group.individualNotes || {};
+                });
+                setGroupNotes(initialGroupNotes);
+                setIndividualNotes(initialIndividualNotes);
+            }
+            // Reset local UI state when modal opens/changes dynamic
+            if(activeDynamicTimer?.dynamicId === dynamic.id){
+                setInitialMinutes(activeDynamicTimer.duration / 60);
+            } else {
+                setInitialMinutes(15);
+            }
+        } catch (error) {
+            console.error("Error in useEffect:", error);
         }
-        // Reset local UI state when modal opens/changes dynamic
-        if(activeDynamicTimer?.dynamicId === dynamic.id){
-            setInitialMinutes(activeDynamicTimer.duration / 60);
-        } else {
-            setInitialMinutes(15);
-        }
-
     }, [dynamic, isOpen, activeDynamicTimer]);
     
-    const handleFinishAndSave = () => {
+    const handleCloseAndSave = () => {
         const updatedDynamic: Dynamic = {
             ...dynamic,
             generalNotes,
@@ -141,6 +149,7 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                 groupNotes: groupNotes[groupIndex] || '',
                 individualNotes: individualNotes[groupIndex] || {},
             })),
+            candidates: allCandidates,
         };
         onUpdateDynamic(updatedDynamic);
         onClose();
@@ -180,6 +189,27 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
     const handleResetTimer = () => {
         onResetDynamicTimer();
     };
+
+    const handleGetInsights = async () => {
+        setIsAiLoading(true);
+        setAiSuggestions([]);
+
+        const dynamicData = {
+            dynamicTitle: dynamic.title,
+            generalNotes,
+            groups: dynamic.groups.map((group, groupIndex) => ({
+                name: group.name,
+                groupNotes: groupNotes[groupIndex] || '',
+                individualNotes: individualNotes[groupIndex] || {},
+            })),
+        };
+
+        const insights = await getDynamicInsights(dynamicData);
+        if (insights) {
+            setAiSuggestions(insights);
+        }
+        setIsAiLoading(false);
+    };
     
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -187,7 +217,7 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
         return `${mins}:${secs}`;
     };
 
-    const getCandidateName = (id: number) => allCandidates.find(c => c.id === id)?.name || 'Desconhecido';
+    const getCandidateName = (id: string) => allCandidates.find(c => c.id === id)?.name || 'Desconhecido';
 
     useEffect(() => {
         const handleFullscreenChange = () => {
@@ -197,10 +227,80 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
 
+    const handleFinishDynamic = async () => {
+        setIsAiLoading(true);
+        setAiError(null);
+        try {
+            const dynamicData = {
+                dynamicTitle: dynamic.title,
+                generalNotes,
+                groups: dynamic.groups.map((group, groupIndex) => ({
+                    ...group,
+                    groupNotes: groupNotes[groupIndex] || '',
+                    individualNotes: individualNotes[groupIndex] || {},
+                })),
+                candidates: allCandidates,
+            };
+
+            const summary = await summarizeDynamic(dynamicData);
+
+            if (summary) {
+                const updatedDynamic: Dynamic = {
+                    ...dynamic,
+                    generalNotes,
+                    groups: dynamic.groups.map((group, groupIndex) => ({
+                        ...group,
+                        groupNotes: groupNotes[groupIndex] || '',
+                        individualNotes: individualNotes[groupIndex] || {},
+                    })),
+                    aiSummary: summary,
+                    status: 'completed',
+                };
+                onUpdateDynamic(updatedDynamic);
+                setIsAiLoading(false);
+                setIsConfirmModalOpen(false);
+                onClose();
+            } else {
+                throw new Error("A IA não conseguiu gerar um resumo.");
+            }
+        } catch (error) {
+            console.error("Erro ao finalizar dinâmica:", error);
+            setAiError("Ocorreu um erro ao gerar o resumo da IA. Por favor, tente novamente mais tarde.");
+            setIsAiLoading(false);
+        }
+    };
+
     if (!isOpen) return null;
+
+    const ConfirmationModal = () => (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[90]">
+            <div className="bg-light-surface dark:bg-surface p-6 rounded-lg shadow-xl text-center min-w-[320px]">
+                <h3 className="text-lg font-bold mb-4">Confirmar Finalização</h3>
+                {isAiLoading ? (
+                    <p>Aguarde, o Lacostinho está gerando os resumos...</p>
+                ) : aiError ? (
+                    <>
+                        <p className="text-sm text-red-500 mb-4">{aiError}</p>
+                        <button onClick={() => { setIsConfirmModalOpen(false); setAiError(null); }} className="bg-light-border dark:bg-border font-bold px-4 py-2 rounded-lg">Fechar</button>
+                    </>
+                ) : (
+                    <>
+                        <p className="text-sm text-light-text-secondary dark:text-text-secondary mb-6">
+                            Você tem certeza que deseja finalizar esta dinâmica? Esta ação é irreversível.
+                        </p>
+                        <div className="flex justify-center gap-4">
+                            <button onClick={() => { setIsConfirmModalOpen(false); setAiError(null); }} className="bg-light-border dark:bg-border font-bold px-4 py-2 rounded-lg">Cancelar</button>
+                            <button onClick={handleFinishDynamic} className="bg-red-500 text-white font-bold px-4 py-2 rounded-lg">Confirmar e Gerar Resumos</button>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
 
     return (
         <div className="fixed inset-0 bg-light-background/80 dark:bg-background/90 backdrop-blur-md flex justify-center items-center z-[80] p-4 animate-fade-in">
+            {isConfirmModalOpen && <ConfirmationModal />}
             <div ref={modalRef} className={`bg-light-surface dark:bg-surface flex flex-col border border-light-border dark:border-border ${isFullscreen ? 'w-full h-full' : 'rounded-2xl shadow-2xl w-full max-w-7xl h-[95vh]'}`}>
                 <div className="p-5 border-b border-light-border dark:border-border flex justify-between items-center">
                     <div>
@@ -285,15 +385,31 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                         </div>
                         
                         {viewMode === 'recruiter' && (
-                            <div>
-                                <h3 className="text-lg font-bold text-light-primary dark:text-primary mb-2">Anotações Gerais da Dinâmica</h3>
-                                <textarea
-                                    value={generalNotes}
-                                    onChange={(e) => setGeneralNotes(e.target.value)}
-                                    rows={8}
-                                    placeholder="Registre aqui suas observações sobre o andamento geral da atividade..."
-                                    className="w-full px-3 py-2 bg-light-background dark:bg-background border border-light-border dark:border-border rounded-md focus:ring-2 focus:ring-light-primary dark:focus:ring-primary"
-                                />
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="text-lg font-bold text-light-primary dark:text-primary mb-2">Anotações Gerais da Dinâmica</h3>
+                                    <textarea
+                                        value={generalNotes}
+                                        onChange={(e) => setGeneralNotes(e.target.value)}
+                                        rows={8}
+                                        placeholder="Registre aqui suas observações sobre o andamento geral da atividade..."
+                                        className="w-full px-3 py-2 bg-light-background dark:bg-background border border-light-border dark:border-border rounded-md focus:ring-2 focus:ring-light-primary dark:focus:ring-primary"
+                                    />
+                                </div>
+                                <div className="p-4 bg-light-background dark:bg-background rounded-lg border border-light-border dark:border-border">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h4 className="font-semibold text-light-text-primary dark:text-text-primary">Dicas do Lacostinho</h4>
+                                         <button onClick={handleGetInsights} disabled={isAiLoading} className="bg-light-secondary/20 text-light-secondary dark:bg-secondary/20 dark:text-secondary text-xs font-bold px-3 py-1 rounded-lg hover:bg-light-secondary/30 dark:hover:bg-secondary/40 disabled:opacity-50">
+                                            {isAiLoading ? 'Gerando...' : 'Pedir Dicas'}
+                                        </button>
+                                    </div>
+                                    {isAiLoading && <p className="text-sm text-center text-light-text-secondary dark:text-text-secondary">Aguarde, a IA está analisando os dados...</p>}
+                                    {aiSuggestions.length > 0 && (
+                                        <ul className="list-disc pl-5 space-y-1 text-sm text-light-text-secondary dark:text-text-secondary">
+                                            {aiSuggestions.map((tip, i) => <li key={i}>{tip}</li>)}
+                                        </ul>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -358,8 +474,11 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                         <button type="button" onClick={handleSaveAndContinue} className="bg-light-background dark:bg-background border border-light-border dark:border-border font-bold px-6 py-2.5 rounded-lg hover:bg-light-border dark:hover:bg-border transition-colors">
                             Salvar Anotações
                         </button>
-                        <button type="button" onClick={handleFinishAndSave} className="bg-light-primary dark:bg-primary text-white font-bold px-6 py-2.5 rounded-lg hover:bg-light-primary-hover dark:hover:bg-primary-hover">
+                        <button type="button" onClick={() => setIsConfirmModalOpen(true)} className="bg-red-500 text-white font-bold px-6 py-2.5 rounded-lg hover:bg-red-600">
                             Finalizar Dinâmica
+                        </button>
+                        <button type="button" onClick={handleCloseAndSave} className="bg-light-primary dark:bg-primary text-white font-bold px-6 py-2.5 rounded-lg hover:bg-light-primary-hover dark:hover:bg-primary-hover">
+                            Fechar Dinâmica
                         </button>
                     </div>
                 </div>

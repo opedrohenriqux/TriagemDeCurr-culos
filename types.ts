@@ -147,6 +147,8 @@ export interface Dynamic {
     participants: string[];
     groups: DynamicGroup[];
     generalNotes?: string;
+    aiSummary?: any;
+    status?: 'scheduled' | 'completed';
 }
 
 export interface ActiveDynamicTimer {

@@ -31,11 +31,7 @@ const NewConversationModal: React.FC<NewConversationModalProps> = ({ type, candi
                 .filter(u => u.id !== currentUserId)
                 .filter(u => !existingPartnerIds.has(`user-${u.id}`))
                 .sort((a, b) => (a.username || '').localeCompare(b.username || ''))
-                .map(u => {
-                    const name = u.username || 'Usuário';
-                    const displayName = name.includes('@') ? name.split('@')[0].charAt(0).toUpperCase() + name.split('@')[0].slice(1) : name.split(' ')[0];
-                    return { id: `user-${u.id}`, name: displayName };
-                });
+                .map(u => ({ id: `user-${u.id}`, name: u.username || 'Usuário' }));
         }
     }, [type, candidates, users, currentUser, conversations]);
 
@@ -138,11 +134,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = (props) => {
     // Lógica Estável
     const partnerMap = useMemo(() => {
         const map = new Map<string, { name: string; avatar?: string; candidate?: Candidate }>();
-        users.forEach(u => {
-            const name = u.username || 'Usuário';
-            const displayName = name.includes('@') ? name.split('@')[0].charAt(0).toUpperCase() + name.split('@')[0].slice(1) : name.split(' ')[0];
-            map.set(`user-${u.id}`, { name: displayName, candidate: undefined });
-        });
+        users.forEach(u => map.set(`user-${u.id}`, { name: u.username || 'Usuário', candidate: undefined }));
         candidates.forEach(c => map.set(`candidate-${c.id}`, { name: c.name, avatar: c.avatarUrl, candidate: c }));
         return map;
     }, [users, candidates]);

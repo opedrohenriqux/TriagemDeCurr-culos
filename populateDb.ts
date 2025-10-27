@@ -1,7 +1,7 @@
 import 'dotenv/config';
-import { db } from './services/firebase';
+import { db } from './services/firebase.ts';
 import { collection, doc, setDoc, getDocs, deleteDoc } from 'firebase/firestore';
-import { INITIAL_JOBS, INITIAL_CANDIDATES, INITIAL_TALENT_POOL } from './constants';
+import { INITIAL_JOBS, INITIAL_CANDIDATES, INITIAL_TALENT_POOL } from './constants.ts';
 
 const clearCollection = async (collectionName: string) => {
   const collectionRef = collection(db, collectionName);

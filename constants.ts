@@ -1,12 +1,12 @@
-import { User, Job, Candidate, Talent, Resume, CandidateStatus, CandidateInterview, Message } from './types';
+import { User, Job, Candidate, Talent, Resume, CandidateStatus, CandidateInterview, Message } from './types.ts';
 
 // FIX: Added 'role' and 'specialty' to all users for data consistency and to enable new features.
 export const USERS: User[] = [
-  { id: 1, username: 'Pedro', password: 'Pedro', role: 'admin', specialty: 'Generalista' },
-  { id: 2, username: 'Marcos', password: 'Marcos', role: 'admin', specialty: 'Cozinha' },
-  { id: 3, username: 'ruan@lacoste.com', password: 'Ruan', role: 'admin', specialty: 'Marketing' },
-  { id: 4, username: 'Luan', password: 'Luan', role: 'admin', specialty: 'Financeiro' },
-  { id: 5, username: 'Samuel', password: 'Samuel', role: 'admin', specialty: 'Administrativo' },
+  { id: '1', username: 'Pedro', password: 'Pedro', role: 'admin', specialty: 'Generalista' },
+  { id: '2', username: 'Marcos', password: 'Marcos', role: 'admin', specialty: 'Cozinha' },
+  { id: '3', username: 'ruan@lacoste.com', password: 'Ruan', role: 'admin', specialty: 'Marketing' },
+  { id: '4', username: 'Luan', password: 'Luan', role: 'admin', specialty: 'Financeiro' },
+  { id: '5', username: 'Samuel', password: 'Samuel', role: 'admin', specialty: 'Administrativo' },
 ];
 
 export const INITIAL_JOBS: Job[] = [
@@ -265,7 +265,7 @@ const generateJobPopulation = (jobId: string, count: number) => {
         }
 
         const candidateData = {
-            id: candidateIdCounter++,
+            id: String(candidateIdCounter++),
             name,
             age,
             gender,
@@ -301,7 +301,7 @@ const generateJobPopulation = (jobId: string, count: number) => {
         const historicalChance = Math.random();
         if (historicalChance > 0.7) { 
             const talent: Talent = {
-                id: talentIdCounter++,
+                id: String(talentIdCounter++),
                 originalCandidateId: candidateData.id,
                 name: candidateData.name,
                 age: candidateData.age,
@@ -375,7 +375,7 @@ const generateJobPopulation = (jobId: string, count: number) => {
 
 const approvedSg01Candidates: Candidate[] = [
     {
-        id: 201, name: 'Maria Eduarda Santos', age: 23, maritalStatus: 'Solteira', education: 'Ensino Médio Completo',
+        id: '201', name: 'Maria Eduarda Santos', age: 23, maritalStatus: 'Solteira', education: 'Ensino Médio Completo',
         experience: '3 anos em fast-food (Atendente e Auxiliar de Limpeza)', skills: ['Limpeza', 'Organização', 'Atendimento ao Cliente', 'Trabalho em Equipe', 'Agilidade'],
         summary: 'Profissional ágil e responsável, com experiência consolidada em fast-food.', location: 'Jardim Santa Genebra – Campinas, SP (3,2 km do Shopping Dom Pedro)',
         jobId: 'sg-01', fitScore: 9.8, status: 'approved', applicationDate: new Date().toISOString(), source: 'LinkedIn', isArchived: false, gender: 'female',
@@ -387,7 +387,7 @@ const approvedSg01Candidates: Candidate[] = [
         }
     },
     {
-        id: 202, name: 'Rafael Almeida', age: 25, maritalStatus: 'Casado', education: 'Ensino Médio Completo',
+        id: '202', name: 'Rafael Almeida', age: 25, maritalStatus: 'Casado', education: 'Ensino Médio Completo',
         experience: '2.5 anos em fast-food (Atendente e Cozinheiro)', skills: ['Limpeza', 'Organização', 'Suporte Geral', 'Trabalho em Equipe', 'Proatividade'],
         summary: 'Experiência sólida em redes de alimentação, proativo e ágil.', location: 'Parque das Universidades – Campinas, SP (4,8 km)',
         jobId: 'sg-01', fitScore: 9.5, status: 'approved', applicationDate: new Date().toISOString(), source: 'Indicação', isArchived: false, gender: 'male',
@@ -399,7 +399,7 @@ const approvedSg01Candidates: Candidate[] = [
         }
     },
     {
-        id: 203, name: 'Fernanda Souza', age: 28, maritalStatus: 'Solteira', education: 'Ensino Médio Completo',
+        id: '203', name: 'Fernanda Souza', age: 28, maritalStatus: 'Solteira', education: 'Ensino Médio Completo',
         experience: '3 anos em fast-food e restaurante (Serviços Gerais e Auxiliar de Cozinha)', skills: ['Limpeza Profissional', 'Organização', 'Atendimento ao Cliente', 'Trabalho em Equipe', 'Pontualidade'],
         summary: 'Comprometida e pontual, com boa vivência no setor alimentício.', location: 'Jardim Santa Cândida – Campinas, SP (2,6 km)',
         jobId: 'sg-01', fitScore: 9.6, status: 'applied', applicationDate: new Date().toISOString(), source: 'Website', isArchived: false, gender: 'female',
@@ -411,7 +411,7 @@ const approvedSg01Candidates: Candidate[] = [
         }
     },
     {
-        id: 204, name: 'João Victor Ferreira', age: 22, maritalStatus: 'Solteiro', education: 'Ensino Médio Completo',
+        id: '204', name: 'João Victor Ferreira', age: 22, maritalStatus: 'Solteiro', education: 'Ensino Médio Completo',
         experience: '2.3 anos em fast-food (Auxiliar de Limpeza e Ajudante de Cozinha)', skills: ['Limpeza', 'Organização', 'Atendimento ao Cliente', 'Trabalho em Equipe', 'Comunicação'],
         summary: 'Jovem dedicado, comunicativo e com experiência em cozinha rápida.', location: 'Barão Geraldo – Campinas, SP (5,5 km)',
         jobId: 'sg-01', fitScore: 9.2, status: 'applied', applicationDate: new Date().toISOString(), source: 'Google Forms', isArchived: false, gender: 'male',
@@ -423,7 +423,7 @@ const approvedSg01Candidates: Candidate[] = [
         }
     },
     {
-        id: 205, name: 'Camila Ribeiro', age: 24, maritalStatus: 'Solteira', education: 'Ensino Médio Completo',
+        id: '205', name: 'Camila Ribeiro', age: 24, maritalStatus: 'Solteira', education: 'Ensino Médio Completo',
         experience: '3 anos em restaurante (Serviços Gerais e Copeira)', skills: ['Limpeza', 'Organização', 'Suporte Geral', 'Trabalho em Equipe', 'Atenção aos Detalhes'],
         summary: 'Profissional organizada, atenta aos detalhes e com experiência em limpeza de cozinha industrial.', location: 'Jardim Santana – Campinas, SP (4,2 km)',
         jobId: 'sg-01', fitScore: 9.4, status: 'applied', applicationDate: new Date().toISOString(), source: 'LinkedIn', isArchived: false, gender: 'female',
@@ -435,7 +435,7 @@ const approvedSg01Candidates: Candidate[] = [
         }
     },
     {
-        id: 206, name: 'Bruno Cardoso', age: 26, maritalStatus: 'Casado', education: 'Ensino Médio Completo',
+        id: '206', name: 'Bruno Cardoso', age: 26, maritalStatus: 'Casado', education: 'Ensino Médio Completo',
         experience: '2.8 anos em fast-food (Serviços Gerais e Ajudante de Cozinha)', skills: ['Limpeza', 'Organização', 'Atendimento ao Cliente', 'Trabalho em Equipe', 'Responsabilidade'],
         summary: 'Responsável e habituado ao ritmo de restaurantes.', location: 'Jardim Pauliceia – Campinas, SP (6,1 km)',
         jobId: 'sg-01', fitScore: 8.8, status: 'applied', applicationDate: new Date().toISOString(), source: 'Indeed', isArchived: false, gender: 'male',
@@ -447,7 +447,7 @@ const approvedSg01Candidates: Candidate[] = [
         }
     },
     {
-        id: 207, name: 'Larissa Pires', age: 21, maritalStatus: 'Solteira', education: 'Ensino Médio Completo',
+        id: '207', name: 'Larissa Pires', age: 21, maritalStatus: 'Solteira', education: 'Ensino Médio Completo',
         experience: '2.5 anos (Atendente e Auxiliar de Limpeza)', skills: ['Limpeza de Cozinha', 'Organização', 'Atendimento ao Cliente', 'Suporte Geral', 'Trabalho em Equipe'],
         summary: 'Comunicativa e disposta a aprender.', location: 'Jardim Aurélia – Campinas, SP (7,0 km)',
         jobId: 'sg-01', fitScore: 8.5, status: 'applied', applicationDate: new Date().toISOString(), source: 'Website', isArchived: false, gender: 'female',
@@ -459,7 +459,7 @@ const approvedSg01Candidates: Candidate[] = [
         }
     },
     {
-        id: 208, name: 'Diego Monteiro', age: 27, maritalStatus: 'Casado', education: 'Ensino Médio Completo',
+        id: '208', name: 'Diego Monteiro', age: 27, maritalStatus: 'Casado', education: 'Ensino Médio Completo',
         experience: '3 anos em fast-food (Limpeza e Auxiliar de Cozinha)', skills: ['Limpeza', 'Organização', 'Atendimento ao Cliente', 'Trabalho em Equipe', 'Agilidade'],
         summary: 'Experiência em redes de fast-food, ágil e comprometido.', location: 'Jardim Santa Genebra II – Campinas, SP (3,9 km)',
         jobId: 'sg-01', fitScore: 9.7, status: 'applied', applicationDate: new Date().toISOString(), source: 'LinkedIn', isArchived: false, gender: 'male',
@@ -471,7 +471,7 @@ const approvedSg01Candidates: Candidate[] = [
         }
     },
     {
-        id: 209, name: 'Juliana Martins', age: 30, maritalStatus: 'Casada', education: 'Ensino Médio Completo',
+        id: '209', name: 'Juliana Martins', age: 30, maritalStatus: 'Casada', education: 'Ensino Médio Completo',
         experience: '2.4 anos em fast-food (Serviços Gerais)', skills: ['Limpeza Industrial', 'Organização', 'Atendimento ao Cliente', 'Suporte Geral', 'Trabalho em Equipe'],
         summary: 'Dedicada, pontual e com boa comunicação.', location: 'Cidade Universitária – Campinas, SP (4,5 km)',
         jobId: 'sg-01', fitScore: 9.3, status: 'applied', applicationDate: new Date().toISOString(), source: 'Indicação', isArchived: false, gender: 'female',
@@ -483,7 +483,7 @@ const approvedSg01Candidates: Candidate[] = [
         }
     },
     {
-        id: 210, name: 'Felipe Barbosa', age: 24, maritalStatus: 'Solteiro', education: 'Ensino Médio Completo',
+        id: '210', name: 'Felipe Barbosa', age: 24, maritalStatus: 'Solteiro', education: 'Ensino Médio Completo',
         experience: '3 anos em fast-food e restaurante (Ajudante de Cozinha e Serviços Gerais)', skills: ['Limpeza', 'Organização', 'Atendimento ao Cliente', 'Trabalho em Equipe', 'Disciplina'],
         summary: 'Disciplinado e acostumado ao ambiente de alta demanda.', location: 'Jardim Chapadão – Campinas, SP (6,3 km)',
         jobId: 'sg-01', fitScore: 8.9, status: 'applied', applicationDate: new Date().toISOString(), source: 'Google Forms', isArchived: false, gender: 'male',
@@ -495,7 +495,7 @@ const approvedSg01Candidates: Candidate[] = [
         }
     },
     {
-        id: 211, name: 'Ana Paula Freitas', age: 29, maritalStatus: 'Solteira', education: 'Ensino Médio Completo',
+        id: '211', name: 'Ana Paula Freitas', age: 29, maritalStatus: 'Solteira', education: 'Ensino Médio Completo',
         experience: '3 anos em fast-food (Copeira e Auxiliar de Limpeza)', skills: ['Limpeza', 'Organização', 'Suporte Geral', 'Trabalho em Equipe', 'Eficiência'],
         summary: 'Eficiente e detalhista, com foco em limpeza e agilidade.', location: 'Vila Costa e Silva – Campinas, SP (3,5 km)',
         jobId: 'sg-01', fitScore: 9.5, status: 'applied', applicationDate: new Date().toISOString(), source: 'LinkedIn', isArchived: false, gender: 'female',
@@ -507,7 +507,7 @@ const approvedSg01Candidates: Candidate[] = [
         }
     },
     {
-        id: 212, name: 'Leandro Nascimento', age: 31, maritalStatus: 'Casado', education: 'Ensino Médio Completo',
+        id: '212', name: 'Leandro Nascimento', age: 31, maritalStatus: 'Casado', education: 'Ensino Médio Completo',
         experience: '4 anos em limpeza e manutenção (Fast-food e Shopping)', skills: ['Limpeza', 'Organização', 'Atendimento ao Cliente', 'Suporte Geral', 'Trabalho em Equipe'],
         summary: 'Experiência em limpeza comercial e manutenção.', location: 'Jardim Santa Marcelina – Campinas, SP (2,9 km)',
         jobId: 'sg-01', fitScore: 9.8, status: 'applied', applicationDate: new Date().toISOString(), source: 'Indicação', isArchived: false, gender: 'male',
@@ -529,7 +529,7 @@ const generateRejectedSg01Candidates = (): Candidate[] => {
         const name = `${nameList[Math.floor(Math.random() * nameList.length)]} ${surnames[Math.floor(Math.random() * surnames.length)]}`;
 
         const candidate: Candidate = {
-            id: candidateIdCounter++,
+            id: String(candidateIdCounter++),
             name: name,
             age: Math.floor(Math.random() * 25) + 18,
             gender: gender,
@@ -582,7 +582,7 @@ export const INITIAL_CANDIDATES: Candidate[] = [
 
 export const INITIAL_TALENT_POOL: Talent[] = [
   {
-    id: 9001,
+    id: '9001',
     name: 'Ana Beatriz Moreira',
     age: 26,
     gender: 'female',
@@ -595,7 +595,7 @@ export const INITIAL_TALENT_POOL: Talent[] = [
     desiredPosition: 'Supervisora de Operações',
   },
   {
-    id: 9002,
+    id: '9002',
     name: 'Carlos Eduardo Silva',
     age: 29,
     gender: 'male',
@@ -608,7 +608,7 @@ export const INITIAL_TALENT_POOL: Talent[] = [
     desiredPosition: 'Coordenador de Marketing',
   },
   {
-    id: 9003,
+    id: '9003',
     name: 'Luiza Fernandes',
     age: 32,
     gender: 'female',

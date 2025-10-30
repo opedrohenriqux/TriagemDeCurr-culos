@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc, serverTimestamp, getDocFromServer } from 'firebase/firestore';
 import { Job, Candidate, Talent, Message, HistoryEvent, Dynamic, User, ActiveDynamicTimer } from '../types';
 
 // Helper to remove undefined values, which are not supported by Firestore.
@@ -134,3 +134,31 @@ export const historyService = createFirestoreService<HistoryEvent>('history');
 export const dynamicService = createFirestoreService<Dynamic>('dynamics');
 export const userService = createFirestoreService<User>('users');
 export const activeTimerService = createSingletonService<ActiveDynamicTimer>('appState', 'activeTimer');
+
+// Function to get the estimated offset between client and server time.
+export const getServerTimeOffset = async (): Promise<number> => {
+    try {
+        const docRef = doc(collection(db, 'diagnostics'), 'serverTime');
+
+        // Write server timestamp to a document
+        await setDoc(docRef, { timestamp: serverTimestamp() });
+
+        const clientWriteTime = Date.now();
+
+        // Read the document back from the server
+        const docSnap = await getDocFromServer(docRef);
+        const serverTime = docSnap.get('timestamp')?.toMillis();
+
+        if (serverTime) {
+            const clientReadTime = Date.now();
+            const latency = (clientReadTime - clientWriteTime) / 2;
+            const offset = serverTime - (clientReadTime - latency);
+            return offset;
+        }
+
+        return 0;
+    } catch (error) {
+        console.error("Error getting server time offset:", error);
+        return 0; // Fallback to no offset if there's an error
+    }
+};

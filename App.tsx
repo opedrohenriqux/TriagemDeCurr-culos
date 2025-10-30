@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser } from 'firebase/auth';
+import { serverTimestamp, Timestamp } from 'firebase/firestore';
 import LoginScreen from './components/auth/LoginScreen';
 import MainLayout, { View } from './components/layout/MainLayout';
 import { User, Job, Candidate, Talent, CandidateInterview, Message, CandidateStatus, HistoryEvent, HistoryAction, Dynamic, ActiveDynamicTimer } from './types';
@@ -736,7 +737,7 @@ function App() {
   const handleStartDynamicTimer = async (dynamicId: string, durationMinutes: number, mode: 'countdown' | 'countup') => {
       const newTimerState: ActiveDynamicTimer = {
           dynamicId,
-          startTime: Date.now(),
+          startTime: serverTimestamp(),
           duration: durationMinutes * 60,
           isRunning: true,
           mode,
@@ -747,17 +748,29 @@ function App() {
 
   const handlePauseDynamicTimer = async () => {
       if (!activeDynamicTimer || !activeDynamicTimer.isRunning) return;
-      await activeTimerService.update({ isRunning: false, pauseTime: Date.now() });
+      await activeTimerService.update({ isRunning: false, pauseTime: serverTimestamp() });
   };
 
   const handleResumeDynamicTimer = async () => {
       if (!activeDynamicTimer || activeDynamicTimer.isRunning || !activeDynamicTimer.pauseTime) return;
-      const elapsedPausedTime = Date.now() - activeDynamicTimer.pauseTime;
-      await activeTimerService.update({
-          isRunning: true,
-          startTime: (activeDynamicTimer.startTime || 0) + elapsedPausedTime,
-          pauseTime: null,
-      });
+
+      // Ensure startTime and pauseTime are Firestore Timestamps before proceeding
+      if (activeDynamicTimer.startTime && typeof activeDynamicTimer.startTime.toMillis === 'function' && activeDynamicTimer.pauseTime && typeof activeDynamicTimer.pauseTime.toMillis === 'function') {
+           // Calculate the time that had already elapsed before pausing.
+          const elapsedBeforePauseMillis = activeDynamicTimer.pauseTime.toMillis() - activeDynamicTimer.startTime.toMillis();
+
+          // Calculate the remaining duration in seconds.
+          const remainingDurationSeconds = Math.max(0, activeDynamicTimer.duration - (elapsedBeforePauseMillis / 1000));
+
+          // Resume by setting a new start time and updating the duration to what was remaining.
+          // This avoids mixing client and server time, creating a robust, synchronized state.
+          await activeTimerService.update({
+              isRunning: true,
+              startTime: serverTimestamp(),
+              duration: remainingDurationSeconds,
+              pauseTime: null,
+          });
+      }
   };
 
   const handleResetDynamicTimer = async () => {

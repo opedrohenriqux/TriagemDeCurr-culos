@@ -3,6 +3,7 @@ import { Dynamic, Candidate, ActiveDynamicTimer } from '../../types';
 import InitialsAvatar from '../common/InitialsAvatar';
 import { speak } from '../../services/speechService';
 import { summarizeDynamic, getDynamicInsights } from '../../services/geminiService';
+import { getServerTimeOffset } from '../../services/firestoreService';
 
 interface DynamicViewerModalProps {
     isOpen: boolean;
@@ -36,6 +37,7 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
     const [displayTime, setDisplayTime] = useState(initialMinutes * 60);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [announcedMilestones, setAnnouncedMilestones] = useState<Set<string>>(new Set());
+    const [serverTimeOffset, setServerTimeOffset] = useState(0);
 
 
     const intervalRef = useRef<number | null>(null);
@@ -56,6 +58,10 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
     
     // Effect for the timer display logic
     useEffect(() => {
+        getServerTimeOffset().then(setServerTimeOffset);
+    }, []);
+
+    useEffect(() => {
         const updateDisplay = () => {
             if (activeDynamicTimer && activeDynamicTimer.dynamicId === dynamic.id) {
                 if (!activeDynamicTimer.isRunning) {
@@ -66,9 +72,15 @@ const DynamicViewerModal: React.FC<DynamicViewerModalProps> = (props) => {
                     return;
                 }
 
-                const elapsed = (Date.now() - activeDynamicTimer.startTime) / 1000;
-                const remaining = Math.max(0, activeDynamicTimer.duration - elapsed);
-                setDisplayTime(remaining);
+                if (activeDynamicTimer.startTime && typeof activeDynamicTimer.startTime.toMillis === 'function') {
+                    const correctedClientTime = Date.now() + serverTimeOffset;
+                    const elapsed = (correctedClientTime - activeDynamicTimer.startTime.toMillis()) / 1000;
+                    const remaining = Math.max(0, activeDynamicTimer.duration - elapsed);
+                    setDisplayTime(remaining);
+                } else {
+                    // Se o startTime ainda não foi definido pelo servidor, exibe a duração inicial.
+                    setDisplayTime(activeDynamicTimer.duration);
+                }
 
                 const remainingMinutes = Math.floor(remaining / 60);
 

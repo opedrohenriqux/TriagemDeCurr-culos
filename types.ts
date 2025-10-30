@@ -2,6 +2,8 @@
 // It has been replaced with the correct type definitions for the application,
 // which resolves numerous import errors across all files.
 
+import { Timestamp } from 'firebase/firestore';
+
 export type CandidateStatus = 'applied' | 'screening' | 'approved' | 'rejected' | 'hired' | 'pending' | 'waitlist' | 'offer';
 
 export interface User {
@@ -153,11 +155,11 @@ export interface Dynamic {
 
 export interface ActiveDynamicTimer {
     dynamicId: string;
-    startTime: number | null;
+    startTime: Timestamp | null;
     duration: number;
     isRunning: boolean;
     mode: 'countdown' | 'countup';
-    pauseTime: number | null;
+    pauseTime: Timestamp | null;
 }
 
 export interface AIAnalysis {
